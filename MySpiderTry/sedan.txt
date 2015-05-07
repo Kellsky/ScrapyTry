@@ -1,0 +1,150 @@
+carname is 2014 Subaru Legacy	^^^price is $20,295--$28,895	^^^star is 4.3
+carname is 2014 Dodge Avenger	^^^price is $20,595--$25,795	^^^star is 4.8
+carname is 2014 Mazda Mazda6	^^^price is $20,990--$29,695	^^^star is 4.8
+carname is 2015 Hyundai Sonata	^^^price is $21,150--$33,525	^^^star is 4.8
+carname is 2015 Mazda Mazda6	^^^price is $21,190--$29,895	^^^star is 4.9
+carname is 2015 Volkswagen Passat	^^^price is $21,340--$35,995	^^^star is 3.9
+carname is 2014 Hyundai Sonata	^^^price is $21,450--$28,650	^^^star is 4.4
+carname is 2016 Mazda Mazda6	^^^price is $21,495--$30,195	^^^star is MISSING
+carname is 2014 Kia Optima	^^^price is $21,500--$35,300	^^^star is 4.6
+carname is 2015 Kia Optima	^^^price is $21,690--$35,500	^^^star is 4.9
+carname is 2015 Subaru Legacy	^^^price is $21,695--$29,595	^^^star is 4.9
+carname is 2014 Chrysler 200	^^^price is $21,795--$25,695	^^^star is 4.0
+carname is 2014 Honda Accord	^^^price is $21,955--$33,480	^^^star is 4.6
+carname is 2014 Ford Fusion	^^^price is $21,970--$32,600	^^^star is 4.6
+carname is 2015 Chrysler 200	^^^price is $21,995--$30,825	^^^star is 4.3
+carname is 2014 Volkswagen Passat	^^^price is $22,095--$34,265	^^^star is 4.5
+carname is 2015 Honda Accord	^^^price is $22,105--$33,630	^^^star is 4.7
+carname is 2014 Nissan Altima	^^^price is $22,170--$30,820	^^^star is 4.6
+carname is 2015 Nissan Altima	^^^price is $22,300--$32,350	^^^star is 5.0
+carname is 2014 Chevrolet Malibu	^^^price is $22,340--$29,950	^^^star is 4.8
+carname is 2014 Toyota Camry	^^^price is $22,425--$30,705	^^^star is 4.4
+carname is 2015 Chevrolet Malibu	^^^price is $22,465--$30,480	^^^star is 4.2
+carname is 2015 Ford Fusion	^^^price is $22,500--$32,780	^^^star is 4.7
+carname is 2016 Ford Fusion	^^^price is $22,600--$32,880	^^^star is MISSING
+carname is 2015 Toyota Camry	^^^price is $22,970--$31,370	^^^star is 4.3
+carname is 2016 Ford Fusion Hybrid	^^^price is $25,675--$31,430	^^^star is MISSING
+carname is 2015 Kia Optima Hybrid	^^^price is $25,990--$32,150	^^^star is 5.0
+carname is 2014 Kia Optima Hybrid	^^^price is $25,995--$31,995	^^^star is MISSING
+carname is 2014 Hyundai Sonata Hybrid	^^^price is $26,000--$30,750	^^^star is 4.2
+carname is 2015 Hyundai Sonata Hybrid	^^^price is $26,000--$29,500	^^^star is 5.0
+carname is 2014 Ford Fusion Hybrid	^^^price is $26,270--$32,600	^^^star is 4.6
+carname is 2015 Ford Fusion Hybrid	^^^price is $26,575--$32,330	^^^star is 5.0
+carname is 2015 Toyota Camry Hybrid	^^^price is $26,790--$29,980	^^^star is 4.7
+carname is 2014 Honda Accord Hybrid	^^^price is $29,155--$34,905	^^^star is 4.6
+carname is 2015 Honda Accord Hybrid	^^^price is $29,305--$35,055	^^^star is 5.0
+carname is 2014 Buick Regal	^^^price is $29,690--$39,270	^^^star is 4.5
+carname is 2015 Buick Regal	^^^price is $29,990--$39,810	^^^star is MISSING
+carname is 2015 Acura TLX	^^^price is $31,445--$44,800	^^^star is 4.5
+carname is 2014 Volkswagen CC	^^^price is $31,795--$42,895	^^^star is 4.5
+carname is 2014 Volvo S60	^^^price is $32,400--$45,700	^^^star is 5.0
+carname is 2015 Volkswagen CC	^^^price is $32,995--$43,575	^^^star is MISSING
+carname is 2015 Volvo S60	^^^price is $33,300--$45,700	^^^star is 4.4
+carname is 2014 Buick LaCrosse	^^^price is $33,535--$40,285	^^^star is 4.7
+carname is 2016 Ford Fusion Energi	^^^price is $33,900--$35,730	^^^star is MISSING
+carname is 2014 Ford Fusion Energi	^^^price is $34,700--$36,500	^^^star is 4.6
+carname is 2015 Ford Fusion Energi	^^^price is $34,800--$36,630	^^^star is 5.0
+carname is 2014 Lincoln MKZ	^^^price is $35,190--$37,080	^^^star is 4.6
+carname is 2016 Lincoln MKZ	^^^price is $35,190--$47,495	^^^star is MISSING
+carname is 2015 Lincoln MKZ	^^^price is $35,190--$47,495	^^^star is 5.0
+carname is 2014 Lincoln MKZ Hybrid	^^^price is $35,190	^^^star is 4.6
+carname is 2014 Ford Taurus	^^^price is $26,780--$39,980	^^^star is 4.7
+carname is 2014 Chevrolet Impala	^^^price is $26,860--$35,905	^^^star is 4.6
+carname is 2014 Dodge Charger	^^^price is $26,995--$46,385	^^^star is 5.0
+carname is 2015 Ford Taurus	^^^price is $27,055--$40,220	^^^star is 5.0
+carname is 2015 Chevrolet Impala	^^^price is $27,060--$37,535	^^^star is 3.6
+carname is 2015 Dodge Charger	^^^price is $27,995--$62,295	^^^star is 5.0
+carname is 2014 Hyundai Azera	^^^price is $31,000--$34,750	^^^star is 4.6
+carname is 2015 Buick LaCrosse	^^^price is $31,065--$40,500	^^^star is 3.5
+carname is 2014 Nissan Maxima	^^^price is $31,290--$34,380	^^^star is 4.3
+carname is 2014 Chrysler 300	^^^price is $31,395--$48,900	^^^star is 4.6
+carname is 2014 Toyota Avalon	^^^price is $31,590--$39,900	^^^star is 4.8
+carname is 2015 Chrysler 300	^^^price is $31,695--$37,570	^^^star is 5.0
+carname is 2015 Toyota Avalon	^^^price is $32,285--$39,980	^^^star is 5.0
+carname is 2015 Hyundai Azera	^^^price is $34,000--$38,200	^^^star is 5.0
+carname is 2015 Kia Cadenza	^^^price is $34,900--$43,800	^^^star is MISSING
+carname is 2014 Kia Cadenza	^^^price is $35,100--$42,400	^^^star is 4.6
+carname is 2014 Hyundai Genesis	^^^price is $35,200--$47,400	^^^star is 5.0
+carname is 2014 Toyota Avalon Hybrid	^^^price is $35,805--$41,650	^^^star is 4.7
+carname is 2015 Toyota Avalon Hybrid	^^^price is $36,470--$41,700	^^^star is 5.0
+carname is 2014 Chrysler 300C	^^^price is $37,395--$44,395	^^^star is 4.4
+carname is 2015 Hyundai Genesis	^^^price is $38,000--$51,500	^^^star is 5.0
+carname is 2015 Chrysler 300C	^^^price is $38,070--$44,895	^^^star is MISSING
+carname is 2015 Lincoln MKS	^^^price is $38,850--$45,840	^^^star is MISSING
+carname is 2014 Lincoln MKS	^^^price is $38,850--$45,840	^^^star is 4.3
+carname is 2014 Volvo S80	^^^price is $39,900--$48,150	^^^star is 4.2
+carname is 2015 Volvo S80	^^^price is $40,500--$48,150	^^^star is 5.0
+carname is 2014 Cadillac XTS	^^^price is $44,600--$69,095	^^^star is 4.5
+carname is 2015 Cadillac XTS	^^^price is $44,660--$69,785	^^^star is 5.0
+carname is 2015 Chevrolet SS	^^^price is $45,745	^^^star is 5.0
+carname is 2015 Kia K900	^^^price is $54,500--$59,900	^^^star is 4.8
+carname is 2014 Hyundai Equus	^^^price is $61,250--$68,500	^^^star is 4.4
+carname is 2015 Hyundai Equus	^^^price is $61,500--$68,750	^^^star is 5.0
+carname is 2015 Mercedes-Benz CLS-Class	^^^price is $65,990--$106,550	^^^star is MISSING
+carname is 2014 Mercedes-Benz CLS-Class	^^^price is $72,100--$106,500	^^^star is 4.9
+carname is 2014 Lexus LS 460	^^^price is $72,140--$120,060	^^^star is 5.0
+carname is 2015 Lexus LS 460	^^^price is $72,520--$87,500	^^^star is MISSING
+carname is 2014 BMW 740	^^^price is $74,000--$81,000	^^^star is 5.0
+carname is 2015 BMW 740	^^^price is $74,000--$81,000	^^^star is MISSING
+carname is 2015 Jaguar XJ	^^^price is $74,200--$119,000	^^^star is 5.0
+carname is 2014 Jaguar XJ	^^^price is $74,200--$119,000	^^^star is 5.0
+carname is 2014 Audi A8	^^^price is $75,100--$135,900	^^^star is 5.0
+carname is 2015 Audi A8	^^^price is $77,400--$137,900	^^^star is 5.0
+carname is 2014 BMW ActiveHybrid 7	^^^price is $84,300	^^^star is MISSING
+carname is 2015 BMW ActiveHybrid 7	^^^price is $84,300	^^^star is MISSING
+carname is 2015 BMW 750	^^^price is $87,300--$94,000	^^^star is MISSING
+carname is 2014 BMW 750	^^^price is $87,300--$94,000	^^^star is 4.8
+carname is 2014 Mercedes-Benz S-Class	^^^price is $92,900--$139,500	^^^star is 4.2
+carname is 2015 Mercedes-Benz S-Class	^^^price is $94,400--$230,900	^^^star is 5.0
+carname is 2014 Audi S8	^^^price is $112,500	^^^star is 5.0
+carname is 2015 Audi S8	^^^price is $114,900	^^^star is 5.0
+carname is 2014 Nissan Versa	^^^price is $11,990--$16,890	^^^star is 3.9
+carname is 2015 Nissan Versa	^^^price is $11,990--$16,890	^^^star is 4.6
+carname is 2014 Kia Rio	^^^price is $13,900--$17,900	^^^star is 4.1
+carname is 2015 Kia Rio	^^^price is $13,990--$18,090	^^^star is MISSING
+carname is 2014 Ford Fiesta	^^^price is $14,100--$18,300	^^^star is 4.3
+carname is 2014 Chevrolet Sonic	^^^price is $14,170--$18,725	^^^star is 4.9
+carname is 2015 Chevrolet Sonic	^^^price is $14,245--$21,345	^^^star is 4.5
+carname is 2015 Ford Fiesta	^^^price is $14,455--$18,405	^^^star is 4.4
+carname is 2014 Hyundai Accent	^^^price is $14,645	^^^star is 4.9
+carname is 2015 Hyundai Accent	^^^price is $14,745	^^^star is MISSING
+carname is 2014 Volkswagen Jetta	^^^price is $15,695--$29,775	^^^star is 4.7
+carname is 2015 Kia Forte	^^^price is $15,890--$19,390	^^^star is 4.7
+carname is 2014 Kia Forte	^^^price is $15,900--$19,500	^^^star is 4.6
+carname is 2014 Nissan Sentra	^^^price is $15,990--$19,640	^^^star is 4.5
+carname is 2015 Chevrolet Cruze	^^^price is $16,170--$25,660	^^^star is 4.2
+carname is 2015 Volkswagen Jetta	^^^price is $16,215--$29,280	^^^star is 5.0
+carname is 2015 Nissan Sentra	^^^price is $16,480--$20,670	^^^star is 5.0
+carname is 2014 Dodge Dart	^^^price is $16,495--$22,995	^^^star is 4.5
+carname is 2015 Dodge Dart	^^^price is $16,495--$23,795	^^^star is 4.2
+carname is 2014 Toyota Corolla	^^^price is $16,800--$21,300	^^^star is 4.5
+carname is 2014 Ford Focus	^^^price is $16,810--$23,565	^^^star is 4.4
+carname is 2014 Mazda Mazda3	^^^price is $16,945--$25,995	^^^star is 4.6
+carname is 2015 Mazda Mazda3	^^^price is $16,945--$25,045	^^^star is 4.7
+carname is 2015 Toyota Corolla	^^^price is $16,950--$22,955	^^^star is 4.6
+carname is 2015 Ford Focus	^^^price is $17,170--$23,170	^^^star is 4.0
+carname is 2014 Mitsubishi Lancer	^^^price is $17,195--$28,395	^^^star is 4.7
+carname is 2014 Hyundai Elantra	^^^price is $17,200--$21,700	^^^star is 4.2
+carname is 2015 Hyundai Elantra	^^^price is $17,250--$21,700	^^^star is 4.8
+carname is 2016 Hyundai Elantra	^^^price is $17,250--$21,700	^^^star is MISSING
+carname is 2015 Mitsubishi Lancer	^^^price is $17,395--$29,495	^^^star is 4.5
+carname is 2014 Chevrolet Cruze	^^^price is $17,520--$24,985	^^^star is 4.4
+carname is 2014 Subaru Impreza	^^^price is $17,895--$22,195	^^^star is 4.6
+carname is 2015 Subaru Impreza	^^^price is $18,195--$22,295	^^^star is 4.7
+carname is 2014 Honda Civic	^^^price is $18,390--$22,740	^^^star is 4.6
+carname is 2015 Honda Civic	^^^price is $18,490--$22,840	^^^star is 4.7
+carname is 2015 Buick Verano	^^^price is $23,380--$29,215	^^^star is 5.0
+carname is 2014 Buick Verano	^^^price is $23,700--$29,065	^^^star is 4.9
+carname is 2014 Honda Civic Hybrid	^^^price is $24,635	^^^star is 5.0
+carname is 2015 Honda Civic Hybrid	^^^price is $24,735	^^^star is MISSING
+carname is 2014 Volkswagen Jetta Hybrid	^^^price is $25,560--$31,895	^^^star is MISSING
+carname is 2014 Subaru Impreza WRX	^^^price is $25,995--$37,845	^^^star is 4.4
+carname is 2015 Subaru WRX	^^^price is $26,295--$29,995	^^^star is 5.0
+carname is 2014 Acura ILX	^^^price is $26,900--$29,200	^^^star is 4.8
+carname is 2015 Acura ILX	^^^price is $27,050--$29,350	^^^star is 5.0
+carname is 2016 Acura ILX	^^^price is $27,900	^^^star is MISSING
+carname is 2014 Acura ILX Hybrid	^^^price is $28,900	^^^star is MISSING
+carname is 2015 Audi A3	^^^price is $29,900--$33,200	^^^star is 4.7
+carname is 2014 Mercedes-Benz CLA-Class	^^^price is $29,900--$47,450	^^^star is 4.5
+carname is 2014 Acura TSX	^^^price is $30,635--$39,275	^^^star is 5.0
+carname is 2015 Volkswagen Jetta Hybrid	^^^price is $31,120	^^^star is 5.0
