@@ -10,7 +10,9 @@
 
 ## 启动
 
-需要 Python 3.12 或更新版本。通过 GitHub 下载 ZIP 后先解压，在解压后的仓库目录进入 `writing-studio` 文件夹。首次安装：
+需要 Python 3.12 或更新版本。通过 GitHub 下载 ZIP 后先解压，在解压后的仓库目录进入 `writing-studio` 文件夹。
+
+macOS / Linux 首次安装：
 
 ```bash
 cd writing-studio
@@ -20,7 +22,18 @@ python -m pip install -r requirements.lock
 bash run.sh
 ```
 
+Windows 在仓库目录打开 PowerShell，执行：
+
+```powershell
+cd writing-studio
+py -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.lock
+.venv\Scripts\python -m uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
 服务默认监听本机 8000 端口。浏览器访问该端口即可使用。若需要从同一可信局域网的手机访问，可设置 `WRITING_STUDIO_HOST=0.0.0.0` 后启动，用电脑的局域网 IP 和 8000 端口访问。尚未包含多用户登录，请在本机或可信网络运行。
+
+Windows 手机访问时，把启动命令中的 `--host 127.0.0.1` 改成 `--host 0.0.0.0`。手机和电脑须在同一网络，电脑防火墙也需要允许该端口的局域网访问。
 
 可用 `WRITING_STUDIO_PORT` 更改端口，用 `WRITING_STUDIO_DATA` 指定数据目录。默认保存在本目录下被 Git 忽略的 `data/`，包含数据库、稿件、设置与截图。备份时停止服务后复制该目录。密钥保存在仅当前用户可读写的本地数据库，不返回给网页；数据库未进行额外的磁盘加密。
 
