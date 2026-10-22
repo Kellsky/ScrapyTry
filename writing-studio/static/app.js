@@ -23,7 +23,7 @@ const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const navItems = [['home','home','工作台'],['tasks','inbox','征稿箱'],['review','review','待我审阅'],['profile','book','我的素材'],['settings','settings','模型设置']];
 const activeStatuses = ['queued','extracting','writing','reviewing','revising'];
 const statusNames = {queued:'等待开始',extracting:'提取要求中',writing:'正在写作',reviewing:'交叉点评中',revising:'正在修改',needs_input:'待补充信息',needs_review:'待你审阅',approved:'已审阅',failed:'处理失败'};
-const state = {tasks:[],profile:{},settings:{},page:'home',task:null,filter:'all',query:'',tab:'requirements',editing:false,editText:'',loading:true,modal:null,create:null,busy:false};
+const state = {tasks:[],profile:{},settings:{},providers:[],page:'home',task:null,filter:'all',query:'',tab:'requirements',editing:false,editText:'',loading:true,modal:null,create:null,busy:false};
 let toastTimer, pollBusy = false, lastFocus;
 const countWords = value => ((value || '').match(/[\u3400-\u9fff]|[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g) || []).length;
 const prettyTime = value => {
@@ -70,7 +70,107 @@ function workflow() { return `<div class="workflow-card"><div class="workflow-he
 function home() { const s=stats(); renderShell(`${intro('YOUR WRITING SPACE','写作工作台','把繁琐交给流程，把心思留给文字。')}<section class="hero"><div class="hero-copy"><span class="hero-label">FROM AN IDEA TO A FINISHED STORY</span><h2>好文章，从容写。</h2><p>一条征稿，一次开始。<br>从初稿到打磨，让每一步都有条不紊。</p><button class="hero-link" data-action="example">用一条示例，体验完整流程 ${icon('arrow')}</button></div><div class="paper-art" aria-hidden="true"><div class="art-sheet back"></div><div class="art-sheet front"><div class="art-caption">A NOTE FOR EVERYDAY LIFE</div><h3>在寻常里，<br>遇见微光。</h3><div class="art-lines"><span></span><span></span><span></span><span></span></div><div class="art-seal">稿</div></div><div class="art-pen"></div><div class="art-tag">${icon('check')}灵感，正在成稿</div></div></section><div class="stats-grid">${[['all','inbox',s.total,'全部写作任务',''],['active','spark',s.active,'自动处理中','green'],['review','review',s.review,'等待你的审阅','rust'],['approved','check',s.approved,'已完成审阅','gold']].map(([filter,i,n,label,color])=>`<button class="stat-card" data-stat="${filter}"><span class="stat-icon ${color}">${icon(i)}</span><div><div class="stat-value">${String(n).padStart(2,'0')}</div><div class="stat-label">${label}</div></div><span class="stat-arrow">${icon('arrow')}</span></button>`).join('')}</div><div class="dashboard-grid"><section><div class="section-head"><h2>最近的写作 <small>RECENT WORK</small></h2><a href="#tasks" class="text-link">查看全部 ${icon('arrow')}</a></div>${taskPanel(5)}</section><aside class="dashboard-aside">${workflow()}<div class="tip-card"><span class="eyebrow">MAKE IT YOURS</span><h3>文字，也可以更像你。</h3><p>保存你的文风、经历和写作素材，<br>让每一次创作都有自己的底色。</p><a class="text-link" href="#profile">完善我的素材 ${icon('arrow')}</a></div></aside></div><div class="bottom-note">${icon('leaf')}稿间，让表达慢慢发生。<span>·</span>原型演示 · 不会自动投稿</div>`); bindFilters(); }
 function listPage() { const review=state.page==='review'; renderShell(`${intro(review?'READY FOR YOUR EYES':'YOUR SUBMISSIONS',review?'待我审阅':'征稿箱',review?'最后一道目光，留给你自己。':'收藏值得写的题目，照看正在生长的文章。')}<div class="list-toolbar"><label class="search-wrap">${icon('search')}<input id="task-search" placeholder="搜索题目、刊物或主题" value="${esc(state.query)}" aria-label="搜索写作任务"></label><button class="secondary-btn" data-action="refresh">${icon('refresh')}刷新</button></div>${taskPanel()}`); bindFilters(); $('#task-search')?.addEventListener('input',e=>{state.query=e.target.value; $('#task-list').innerHTML=filteredTasks().map(taskRow).join('') || empty('没有找到相关任务','换个关键词试试。',false);}); }
 function profilePage() { renderShell(`${intro('A LITTLE MORE LIKE YOU','我的素材','让 AI 理解你的表达，也尊重你的真实经历。',false)}<div class="settings-layout"><form id="profile-form" class="form-panel"><section class="form-section"><h2>你的写作名片</h2><p>这些信息只会在你创建真实写作任务时作为创作上下文使用。</p><div class="form-grid">${field('笔名','pen_name',state.profile.pen_name||'','用于工作台显示与稿件署名，可随时修改。')}<label class="form-field full"><span>喜欢怎样的文字</span><textarea name="style" rows="4" placeholder="例如：克制、细腻、有生活感；少用抒情口号，用细节推动故事。">${esc(state.profile.style)}</textarea></label><label class="form-field full"><span>可使用的真实素材与样稿</span><textarea name="materials" rows="9" placeholder="写下可使用的经历、场景，或粘贴你喜欢的写作样稿。请注明哪些属于虚构。">${esc(state.profile.materials)}</textarea><small>真实经历不足时，系统应请求补充；不会把虚构内容自动当作你的亲身经历。</small></label></div></section><div id="profile-error"></div><div class="form-actions"><button class="primary-btn" type="submit">${icon('check')}保存我的素材</button></div></form><aside class="form-aside"><span class="eyebrow">YOUR VOICE MATTERS</span><h3>比“写得好”更重要的，<br>是“像你写的”。</h3><p>可以从一段你熟悉的生活开始：一条街、一场相遇、一种气味。<br><br>保存前，建议去除不想发给模型的敏感信息。真实任务会把相关素材发送到你配置的服务。</p></aside></div>`); $('#profile-form').addEventListener('submit',saveProfile); }
-function settingsPage() { const s=state.settings; renderShell(`${intro('THE MINDS BEHIND YOUR WORDS','模型设置','选择你的写作搭档与评审搭档。',false)}<div class="settings-layout"><form id="settings-form" class="form-panel"><div class="settings-summary">${icon(s.configured?'check':'info')}<div><strong>${s.configured?'模型服务已配置':'当前可以完整体验演示模式'}</strong><small>${s.configured?'真实任务会调用以下服务，产生相应 API 用量。':'演示使用预设内容。配置可用 API 后，才能生成真实稿件。'}</small></div></div><section class="form-section"><h2>写作服务</h2><p>接入支持 OpenAI Chat Completions 格式的模型 API。</p><div class="form-grid">${field('API 基础地址','base_url',s.base_url||'https://api.openai.com/v1','以 /v1 等 API 路径结尾，不包含 /chat/completions。','url')}${field('API Key','api_key','',s.has_key?'已保存密钥；留空会保留现有密钥。':'密钥保存在服务端，不会返回到浏览器。','password')}${field('写作模型','writer_model',s.writer_model||'','填写服务提供商实际开放的模型名称。')}${field('视觉 / OCR 模型（可选）','vision_model',s.vision_model||'','识别上传截图时使用，需支持图片输入。')}</div></section><section class="form-section"><h2>独立评审服务</h2><p>可以让另一家模型点评稿件；地址留空时沿用写作服务。</p><div class="form-grid">${field('评审 API 地址（可选）','reviewer_base_url',s.reviewer_base_url||'','同样使用兼容的 Chat Completions API。','url')}${field('评审 API Key（可选）','reviewer_api_key','',s.has_reviewer_key?'已保存独立评审密钥；留空保留。':'使用独立服务时填写；同一服务可留空。','password')}${field('评审模型','reviewer_model',s.reviewer_model||'','负责要求核对和表达点评的两路独立评审。')}</div></section><section class="form-section"><h2>用量上限</h2><div class="form-grid">${field('每日 token 上限','daily_limit',s.daily_limit||100000,'达到上限后暂停新的模型调用。','number')}<div class="settings-summary" style="margin:0"><div><strong>${Number(s.used_tokens||0).toLocaleString()} tokens</strong><small>今日记录的模型用量 · 非人民币费用</small></div></div></div><p class="inline-note">模型服务按自己的 API 价格计费。聊天软件的会员通常不包含 API 额度。</p></section><div id="settings-error"></div><div class="form-actions"><button class="primary-btn" type="submit">${icon('check')}保存模型设置</button></div></form><aside class="form-aside"><span class="eyebrow">TWO PERSPECTIVES</span><h3>多一道目光，<br>让文字更妥帖。</h3><p>写作模型负责表达，评审模型负责提出问题，修改器再综合可执行的意见。<br><br>互评帮助打磨文章；事实仍然需要来源或你的核对。保存设置不等于服务连通性已验证。</p></aside></div>`); $('#settings-form').addEventListener('submit',saveSettings); }
+function safeExternal(value) {
+  try { const url=new URL(value); return url.protocol==='https:'?url.href:''; } catch { return ''; }
+}
+function providerDetails(provider) {
+  if(!provider)return '<p class="provider-note">使用你自己的兼容 API 地址与模型名称。密钥请在下方填写，保存前不会发起请求。</p>';
+  const signup=safeExternal(provider.signup_url),docs=safeExternal(provider.docs_url);
+  return `<div class="provider-details"><p>${esc(provider.free_note||'免费额度和可用模型以服务商当前账号控制台为准。')}</p><div class="provider-links">${signup?`<a href="${esc(signup)}" target="_blank" rel="noopener noreferrer">${icon('link')}官方领取免费 Token ${icon('arrow')}</a>`:''}${docs?`<a href="${esc(docs)}" target="_blank" rel="noopener noreferrer">查看官方说明 ${icon('arrow')}</a>`:''}</div><small>使用你自己的账号与 Token；无需将密钥发给聊天助手。免费额度可能调整，不代表永久免费或无限使用。</small></div>`;
+}
+function settingsPage() {
+  const s=state.settings,providers=state.providers||[];
+  const selected=providers.find(p=>p.base_url===s.base_url)?.id||(!s.configured?providers[0]?.id:'custom')||'custom';
+  renderShell(`${intro('THE MINDS BEHIND YOUR WORDS','模型设置','选择你的写作搭档与评审搭档。',false)}
+    <div class="settings-layout"><form id="settings-form" class="form-panel">
+      <section class="provider-onboarding" aria-labelledby="provider-heading">
+        <span class="eyebrow">START WITH AN OFFICIAL FREE TIER</span>
+        <h2 id="provider-heading">先用官方免费额度，把流程跑起来。</h2>
+        <p>领取自己的 Token，填入模型设置，再测试实际连接。</p>
+        <div class="provider-picker"><label class="form-field"><span>接入方案</span><select id="provider-select" aria-label="选择 API 接入方案">${providers.map(p=>`<option value="${esc(p.id)}" ${selected===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}<option value="custom" ${selected==='custom'?'selected':''}>自定义兼容服务</option></select></label><button class="secondary-btn" id="apply-provider" type="button" ${selected==='custom'?'disabled':''}>${icon('edit')}填入表单</button></div>
+        <div id="provider-info">${providerDetails(providers.find(p=>p.id===selected))}</div>
+        <p class="provider-apply-note" id="provider-apply-note">预设只填入地址和模型，不会保存或调用 API；已有独立评审服务会保留。</p>
+      </section>
+      <div class="settings-summary">${icon(s.configured?'check':'info')}<div><strong>${s.configured?'模型设置已保存，连接状态请实际测试':'当前可以完整体验演示模式'}</strong><small>${s.configured?'填写密钥不等于连接成功；下方可测试写作与评审服务。':'演示使用预设内容。保存可用 API 后，才能生成真实稿件。'}</small></div></div>
+      <section class="form-section"><h2>写作服务</h2><p>接入支持 OpenAI Chat Completions 格式的模型 API。</p><div class="form-grid">
+        ${field('API 基础地址','base_url',s.base_url||'https://api.openai.com/v1','填写 API 根路径，不包含 /chat/completions。','url')}
+        ${field('API Key / Token','api_key','',s.has_key?'已保存密钥；同一服务留空会保留。更换服务需填写新 Token。':'填写自己的服务商 Token，服务端保存，不返回浏览器。','password')}
+        ${field('写作模型','writer_model',s.writer_model||'','先应用官方预设，或读取账号当前可用模型。')}
+        ${field('视觉 / OCR 模型（可选）','vision_model',s.vision_model||'','只有支持图片输入的模型才能识别截图；可先留空。')}
+      </div><div id="key-change-warning" aria-live="polite"></div></section>
+      <section class="form-section"><h2>独立评审服务</h2><p>可让另一家模型点评稿件；地址留空时沿用写作服务。</p><div class="form-grid">
+        ${field('评审 API 地址（可选）','reviewer_base_url',s.reviewer_base_url||'','使用独立服务时需填写对应的 API Token。','url')}
+        ${field('评审 API Key（可选）','reviewer_api_key','',s.has_reviewer_key?'已保存独立密钥；同一服务留空保留。换服务需填新密钥。':'独立评审服务的 Token；沿用写作服务时可留空。','password')}
+        ${field('评审模型','reviewer_model',s.reviewer_model||'','两个评审会话分别核对征稿要求与表达。')}
+      </div></section>
+      <section class="form-section"><h2>用量上限</h2><div class="form-grid">
+        ${field('每日 token 上限','daily_limit',s.daily_limit||100000,'这是应用自己的调用上限，不能替代服务商的免费额度。','number')}
+        <div class="settings-summary" style="margin:0"><div><strong>${Number(s.used_tokens||0).toLocaleString()} tokens</strong><small>今日记录的模型用量 · 非人民币费用</small></div></div>
+      </div><p class="inline-note">免费余额、限流和可用模型以官方账号控制台为准。聊天应用会员通常不包含 API 额度。</p></section>
+      <div id="settings-error"></div><div class="form-actions"><button class="primary-btn" type="submit">${icon('check')}保存模型设置</button></div>
+      <section class="form-section model-connect-section" aria-labelledby="connect-heading"><h2 id="connect-heading">保存后，验证实际连接。</h2><p>测试使用已保存的设置，会发起简短的真实请求，并可能消耗免费额度。修改表单后请先保存。</p>
+        <div class="model-test-buttons"><button class="secondary-btn" type="button" data-model-action="test" data-role="writer">${icon('spark')}测试写作</button><button class="secondary-btn" type="button" data-model-action="test" data-role="reviewer">${icon('review')}测试评审</button><button class="secondary-btn" type="button" data-model-action="test" data-role="vision">${icon('image')}测试截图模型</button></div>
+        <div class="model-catalog-controls"><label class="form-field"><span>读取账号可用模型</span><select id="model-catalog-role" aria-label="选择读取哪一个服务的模型"><option value="writer">写作服务</option><option value="reviewer">评审服务</option><option value="vision">截图服务</option></select></label><button class="secondary-btn" type="button" id="load-models">${icon('refresh')}读取可用模型</button></div>
+        <p class="inline-note">读取列表后可在模型输入框选择建议，也可手动填写模型 ID。出现在列表中不代表支持图片输入。</p>
+        <div id="settings-connection-result" aria-live="polite"></div><datalist id="model-options-writer"></datalist><datalist id="model-options-reviewer"></datalist><datalist id="model-options-vision"></datalist>
+      </section>
+    </form><aside class="form-aside"><span class="eyebrow">THREE SIMPLE STEPS</span><h3>接好模型，<br>开始真实写作。</h3><ol class="provider-steps"><li><strong>官方领取 Token</strong><span>注册自己的服务商账号，查看当前免费额度和使用规则。</span></li><li><strong>填入并保存</strong><span>选择预设、填写 Token；独立评审服务使用各自的密钥。</span></li><li><strong>测试，再开始任务</strong><span>写作、评审连接成功后，创建任务并选择“真实模型”。</span></li></ol><p>多模型互评帮助打磨文章；事实仍需要来源或你的核对。</p></aside></div>`);
+  const form=$('#settings-form');form.addEventListener('submit',saveSettings);
+  $('#provider-select').addEventListener('change',event=>{const provider=providers.find(p=>p.id===event.target.value);$('#provider-info').innerHTML=providerDetails(provider);$('#apply-provider').disabled=!provider;});
+  $('#apply-provider').addEventListener('click',()=>{
+    const provider=providers.find(p=>p.id===$('#provider-select').value);if(!provider)return;
+    form.elements.base_url.value=provider.base_url||'';form.elements.writer_model.value=provider.writer_model||'';
+    form.elements.vision_model.value=provider.vision_model||'';
+    if(!form.elements.reviewer_base_url.value.trim())form.elements.reviewer_model.value=provider.reviewer_model||provider.writer_model||'';
+    $('#provider-apply-note').textContent='预设已填入，尚未保存。请填入该服务的 Token，保存设置后再测试；独立评审服务已保留。';
+    updateKeyWarning();form.elements.api_key.focus({preventScroll:true});toast('已填入预设，尚未保存或调用 API');
+  });
+  ['base_url','reviewer_base_url','api_key','reviewer_api_key'].forEach(name=>form.elements[name].addEventListener('input',updateKeyWarning));
+  $$('[data-model-action]').forEach(button=>button.addEventListener('click',()=>modelOperation('test',button.dataset.role)));
+  $('#load-models').addEventListener('click',()=>modelOperation('models',$('#model-catalog-role').value));
+  for(const role of ['writer','reviewer','vision'])form.elements[`${role}_model`].setAttribute('list',`model-options-${role}`);
+  updateKeyWarning();
+}
+function settingsOrigin(value) {try{return new URL(value).origin;}catch{return '';}}
+function updateKeyWarning() {
+  const form=$('#settings-form'),box=$('#key-change-warning');if(!form||!box)return;
+  const messages=[];
+  const current=settingsOrigin(form.elements.base_url.value),saved=settingsOrigin(state.settings.base_url);
+  if(state.settings.has_key&&current&&saved&&current!==saved)messages.push(form.elements.api_key.value?'你已更换写作服务，请确认当前 Token 属于新的服务商。':'你已更换写作服务，原密钥不会转发给新服务；请填写新的 Token 后保存。');
+  const reviewCurrent=settingsOrigin(form.elements.reviewer_base_url.value),reviewSaved=settingsOrigin(state.settings.reviewer_base_url);
+  if(state.settings.has_reviewer_key&&reviewCurrent&&reviewSaved&&reviewCurrent!==reviewSaved)messages.push('你已更换独立评审服务，请填写新服务的 Token，避免跨服务使用旧密钥。');
+  box.innerHTML=messages.length?`<div class="provider-key-warning">${icon('shield')}<span>${messages.map(esc).join('<br>')}</span></div>`:'';
+}
+function settingsHaveUnsavedChanges() {
+  const form=$('#settings-form');if(!form)return false;
+  if(form.elements.api_key.value||form.elements.reviewer_api_key.value)return true;
+  return ['base_url','writer_model','reviewer_model','vision_model','reviewer_base_url','daily_limit'].some(name=>String(form.elements[name].value).trim()!==String(state.settings[name]??(name==='daily_limit'?100000:'')).trim());
+}
+function connectionResult(kind,message) {
+  const box=$('#settings-connection-result');if(box)box.innerHTML=`<div class="connection-result ${kind}">${kind==='pending'?'<span class="spinner"></span>':icon(kind==='success'?'check':'info')}<span>${esc(message)}</span></div>`;
+}
+async function modelOperation(action,role) {
+  if(state.settingsActionBusy)return;
+  if(settingsHaveUnsavedChanges()){connectionResult('warning','表单有未保存的修改。请先点击“保存模型设置”，再测试连接或读取模型；当前输入已保留。');return;}
+  if(action==='test'&&!state.settings.configured){connectionResult('warning','请先填写并保存自己的 API Token、写作模型与评审模型，再进行测试。');return;}
+  if(action==='models'&&!(role==='reviewer'?(state.settings.has_reviewer_key||state.settings.has_key):state.settings.has_key)){connectionResult('warning','请先填写并保存该服务的 Token，再读取当前账号的模型列表。');return;}
+  if(action==='test'&&role==='vision'&&!state.settings.vision_model){connectionResult('warning','截图模型尚未配置。可先填写支持图片输入的模型并保存，也可通过粘贴正文开始写作。');return;}
+  const roleName={writer:'写作',reviewer:'评审',vision:'截图'}[role]||'模型';
+  connectionResult('pending',action==='test'?`正在向已保存的${roleName}服务发起简短测试…`:`正在读取${roleName}服务当前账号的模型列表…`);
+  state.settingsActionBusy=true;const buttons=$$('[data-model-action],#load-models');buttons.forEach(button=>button.disabled=true);
+  try{
+    const data=await api(`/api/settings/${action}`,{method:'POST',body:{role}});
+    if(action==='test'){
+      if(!data.ok)throw new Error(data.message||'服务没有返回成功的测试结果。');
+      connectionResult('success',`${roleName}连接测试成功${data.model?` · ${data.model}`:''}。${data.message||''}`);
+    }else{
+      const models=(data.models||[]).map(model=>typeof model==='string'?model:model.id).filter(id=>typeof id==='string'&&id);
+      const targets=role==='writer'&&!state.settings.reviewer_base_url?['writer','reviewer','vision']:[role];
+      for(const target of targets){const datalist=$(`#model-options-${target}`);if(datalist)datalist.innerHTML=models.map(id=>`<option value="${esc(id)}"></option>`).join('');}
+      connectionResult(models.length?'success':'warning',models.length?`已读取 ${models.length} 个模型 ID，可在${roleName}模型输入框选择。实际权限、免费额度和图片支持仍以服务商为准。`:(data.message||'服务没有返回可用模型，请按官方说明手动填写模型 ID。'));
+    }
+  }catch(error){connectionResult('error',error.message);}finally{state.settingsActionBusy=false;buttons.forEach(button=>button.disabled=false);}
+}
 function stageIndex(t) { return {queued:0,extracting:0,writing:1,reviewing:2,revising:3,needs_input:0,needs_review:4,approved:5,failed:0}[t.status]??0; }
 function detailPage() {
   const t=state.task;if(!t){renderShell('<div class="empty-state"><span class="spinner"></span><p>正在打开稿件…</p></div>');return;}
@@ -102,7 +202,7 @@ async function route() {
   else { state.page=navItems.some(i=>i[0]===hash)?hash:'home';if(state.page==='review')state.filter='review';else if(state.page!=='tasks')state.filter='all';render(); }
   window.scrollTo({top:0,behavior:'instant'});
 }
-async function refresh(showToast=false) { const data=await api('/api/bootstrap'); state.tasks=data.tasks||[];state.profile=data.profile||{};state.settings=data.settings||{};if(state.page==='task'&&state.task)state.task=await api(`/api/tasks/${encodeURIComponent(state.task.id)}`); if(!state.editing)render();if(showToast)toast('工作台已更新'); }
+async function refresh(showToast=false) { const data=await api('/api/bootstrap'); state.tasks=data.tasks||[];state.profile=data.profile||{};state.settings=data.settings||{};state.providers=data.providers||state.providers||[];if(state.page==='task'&&state.task)state.task=await api(`/api/tasks/${encodeURIComponent(state.task.id)}`); if(!state.editing)render();if(showToast)toast('工作台已更新'); }
 async function handleAction(action) {
   if(action==='create')openCreate(); if(action==='example')openCreate(true);if(action==='settings')location.hash='settings';if(action==='back')location.hash='tasks';
   if(action==='refresh')try{await refresh(true);}catch(e){toast(e.message,true);}
@@ -149,11 +249,11 @@ function openDelete(){state.modal='delete';simpleModal('删除这条写作任务
 function showVersion(index){const version=state.task.versions[index];state.modal='version';modalShell(esc(version.title||`第 ${version.round??index} 版`),'历史稿件只读，当前终稿不会被覆盖。',`<div class="modal-content"><article class="version-preview">${esc(version.content||version.draft||'暂无文本')}</article></div>`,`<footer class="modal-footer"><small>${countWords(version.content||version.draft)} 字</small><button class="secondary-btn" data-close>关闭</button></footer>`,false);}
 async function saveEdit(){if(state.busy)return;state.busy=true;try{state.task=await api(`/api/tasks/${encodeURIComponent(state.task.id)}/edit`,{method:'POST',body:{draft:state.editText}});state.editing=false;await refresh();toast('修改已保存，历史版本仍然保留');}catch(e){toast(e.message,true);}finally{state.busy=false;}}
 async function saveProfile(e){e.preventDefault();const button=$('button[type="submit"]',e.currentTarget);button.disabled=true;try{const data=Object.fromEntries(new FormData(e.currentTarget));state.profile=await api('/api/profile',{method:'PUT',body:data});await refresh();toast('你的写作素材已保存');}catch(error){$('#profile-error').innerHTML=`<div class="error-inline">${esc(error.message)}</div>`;button.disabled=false;}}
-async function saveSettings(e){e.preventDefault();const button=$('button[type="submit"]',e.currentTarget);button.disabled=true;try{const data=Object.fromEntries(new FormData(e.currentTarget));data.daily_limit=Number(data.daily_limit);if(!Number.isInteger(data.daily_limit)||data.daily_limit<1000)throw new Error('每日 token 上限请填写至少 1000 的整数。');state.settings=await api('/api/settings',{method:'PUT',body:data});await refresh();toast('模型设置已保存；真实连通性将在任务中验证');}catch(error){$('#settings-error').innerHTML=`<div class="error-inline">${esc(error.message)}</div>`;button.disabled=false;}}
+async function saveSettings(e){e.preventDefault();const button=$('button[type="submit"]',e.currentTarget);button.disabled=true;try{const data=Object.fromEntries(new FormData(e.currentTarget));data.daily_limit=Number(data.daily_limit);if(!Number.isInteger(data.daily_limit)||data.daily_limit<1000)throw new Error('每日 token 上限请填写至少 1000 的整数。');state.settings=await api('/api/settings',{method:'PUT',body:data});await refresh();toast('模型设置已保存；可在下方测试实际连接');}catch(error){$('#settings-error').innerHTML=`<div class="error-inline">${esc(error.message)}</div>`;button.disabled=false;}}
 async function download(format){try{const response=await fetch(`/api/tasks/${encodeURIComponent(state.task.id)}/export?format=${encodeURIComponent(format)}`,{credentials:'same-origin'});if(!response.ok){let message='导出失败';try{message=text((await response.json()).detail)||message;}catch{}throw new Error(message);}const blob=await response.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${state.task.title||'稿间文章'}${format==='email'?'-邮件草稿':''}.${format==='docx'?'docx':'txt'}`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(format==='email'?'已导出邮件草稿，尚未发送':'稿件已导出');}catch(e){toast(e.message,true);}}
 document.addEventListener('keydown',e=>{if(!state.modal)return;if(e.key==='Escape')closeModal();if(e.key==='Tab'){const items=$$('button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href]',$('#overlay-root'));const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 window.addEventListener('hashchange',route);
 window.addEventListener('beforeunload',e=>{if(state.editing){e.preventDefault();e.returnValue='';}});
 async function poll(){if(pollBusy||document.hidden||state.modal)return;const running=state.tasks.some(t=>activeStatuses.includes(t.status));if(!running)return;pollBusy=true;try{const tasks=await api('/api/tasks');state.tasks=tasks;if(state.page==='task'&&state.task){const updated=tasks.find(t=>t.id===state.task.id);if(updated&&!state.editing){state.task=updated;detailPage();}}else if(['home','tasks','review'].includes(state.page)&&!$('#task-search')?.matches(':focus'))render();}catch{}finally{pollBusy=false;}}
-async function start(){try{const data=await api('/api/bootstrap');state.tasks=data.tasks||[];state.profile=data.profile||{};state.settings=data.settings||{};state.loading=false;await route();setInterval(poll,1700);}catch(e){$('#app').innerHTML=`<main class="initial-loading"><span class="brand-mark">稿</span><h1 style="font:25px var(--serif)">工作台暂时没有连接上</h1><p>${esc(e.message)}</p><button class="primary-btn" id="reload">重新连接</button></main>`;$('#reload').addEventListener('click',start);}}
+async function start(){try{const data=await api('/api/bootstrap');state.tasks=data.tasks||[];state.profile=data.profile||{};state.settings=data.settings||{};state.providers=data.providers||state.providers||[];state.loading=false;await route();setInterval(poll,1700);}catch(e){$('#app').innerHTML=`<main class="initial-loading"><span class="brand-mark">稿</span><h1 style="font:25px var(--serif)">工作台暂时没有连接上</h1><p>${esc(e.message)}</p><button class="primary-btn" id="reload">重新连接</button></main>`;$('#reload').addEventListener('click',start);}}
 start();

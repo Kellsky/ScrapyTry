@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from io import BytesIO
 from datetime import date, datetime
 import inspect
 import ipaddress
@@ -20,6 +21,7 @@ from urllib.parse import urljoin, urlsplit
 from zoneinfo import ZoneInfo
 
 import httpx
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 
 class EngineError(RuntimeError):
@@ -180,6 +182,9 @@ async def _call(settings: dict, messages: list[dict], *, model: str, max_tokens:
     charged = False
     try:
         body = {"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0.65}
+        if urlsplit(endpoint).hostname == 'api-inference.modelscope.cn' and 'qwen3' in model.lower() and '-vl-' not in model.lower():
+            # Official ModelScope examples disable thinking for direct JSON/text.
+            body['enable_thinking'] = False
         async with httpx.AsyncClient(timeout=httpx.Timeout(90, connect=15), follow_redirects=False) as client:
             async with client.stream("POST", endpoint, headers={"Authorization": "Bearer " + str(settings["api_key"])}, json=body) as response:
                 if response.status_code == 401:
@@ -447,7 +452,23 @@ async def ocr_images(images: list[tuple[bytes, str]], *, settings: dict) -> str:
     for raw, mime in images:
         if mime not in {"image/png", "image/jpeg", "image/webp"} or len(raw) > 8 * 1024 * 1024:
             raise EngineError("截图只支持 PNG、JPEG、WebP，单张不能超过 8MB。")
-        content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64," + base64.b64encode(raw).decode("ascii"), "detail": "low"}})
+        if urlsplit(_endpoint(settings)).hostname == 'api-inference.modelscope.cn':
+            try:
+                with Image.open(BytesIO(raw)) as source:
+                    if source.width * source.height > 20000000:
+                        raise EngineError('截图像素过大，请拆成多张清晰截图。')
+                    if max(source.size) > 2048:
+                        resized = ImageOps.exif_transpose(source).convert('RGB')
+                        resized.thumbnail((2048, 2048), Image.Resampling.LANCZOS)
+                        buffer = BytesIO()
+                        resized.save(buffer, format='JPEG', quality=94)
+                        raw, mime = buffer.getvalue(), 'image/jpeg'
+            except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+                raise EngineError('截图文件无法读取，请上传有效的 PNG、JPG 或 WebP。') from exc
+        image_url = {"url": f"data:{mime};base64," + base64.b64encode(raw).decode("ascii")}
+        if urlsplit(_endpoint(settings)).hostname != 'api-inference.modelscope.cn':
+            image_url['detail'] = 'low'
+        content.append({"type": "image_url", "image_url": image_url})
     return await _call(settings, [{"role": "system", "content": SYSTEM}, {"role": "user", "content": content}], model=settings["vision_model"], max_tokens=4500, images=len(images))
 
 

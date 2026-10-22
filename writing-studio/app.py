@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import uuid
 from urllib.parse import urlsplit
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from docx import Document
@@ -18,6 +19,7 @@ from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 import engine
+import providers
 from store import Store
 
 ROOT = Path(__file__).resolve().parent
@@ -311,7 +313,7 @@ def health():
 @app.get('/api/bootstrap')
 def bootstrap():
     tasks = [public_task(task) for task in store().all()]
-    return {'tasks': tasks, 'profile': profile(), 'settings': public_settings(), 'mode': 'demo',
+    return {'tasks': tasks, 'profile': profile(), 'settings': public_settings(), 'providers': providers.PROVIDERS, 'mode': 'demo',
             'stats': {'total': len(tasks), 'active': sum(t['status'] in ACTIVE for t in tasks),
                       'review': sum(t['status'] == 'needs_review' for t in tasks),
                       'approved': sum(t['status'] == 'approved' for t in tasks)}}
@@ -320,6 +322,31 @@ def bootstrap():
 @app.get('/api/tasks')
 def tasks():
     return [public_task(task) for task in store().all()]
+
+
+@app.get('/api/providers')
+def provider_presets():
+    return providers.PROVIDERS
+
+
+class ModelRole(BaseModel):
+    role: Literal['writer', 'reviewer', 'vision'] = 'writer'
+
+
+@app.post('/api/settings/models')
+async def available_models(body: ModelRole):
+    try:
+        return await providers.list_models(settings(), body.role)
+    except engine.EngineError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post('/api/settings/test')
+async def check_connection(body: ModelRole):
+    try:
+        return await providers.test_connection(call_settings(), body.role)
+    except engine.EngineError as exc:
+        raise HTTPException(400, str(exc))
 
 
 @app.get('/api/tasks/{task_id}')
@@ -538,6 +565,13 @@ def save_settings(body: SettingsInput):
         if reviewer.scheme != 'https' or not reviewer.hostname or reviewer.username or reviewer.password or reviewer.query or reviewer.fragment:
             raise HTTPException(422, '评审 API 地址必须为有效的 HTTPS 地址，且不能包含凭据或参数')
     current = settings()
+    previous_host = urlsplit(current['base_url']).netloc.lower()
+    if current.get('api_key') and previous_host != parsed.netloc.lower() and not (body.api_key and body.api_key.strip()):
+        raise HTTPException(422, '切换 API 服务时请填写新平台的密钥，现有密钥不会发送到另一家服务商')
+    old_review_host = urlsplit(current.get('reviewer_base_url') or current['base_url']).netloc.lower()
+    new_review_host = urlsplit(body.reviewer_base_url.strip() or body.base_url.strip()).netloc.lower()
+    if current.get('reviewer_api_key') and old_review_host != new_review_host and not (body.reviewer_api_key and body.reviewer_api_key.strip()):
+        raise HTTPException(422, '切换评审服务时请填写新平台的评审密钥，原评审密钥不会发送到另一家服务商')
     update = body.model_dump(exclude={'api_key', 'reviewer_api_key'})
     update['base_url'] = body.base_url.strip().rstrip('/')
     update['reviewer_base_url'] = body.reviewer_base_url.strip().rstrip('/')
