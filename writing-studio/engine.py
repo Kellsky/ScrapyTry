@@ -413,7 +413,8 @@ async def review_draft(draft: str, requirements: dict, *, settings: dict, mode: 
             if origin(primary) != origin(reviewer):
                 raise EngineError("评审 API 与写作 API 属于不同服务，请单独配置评审服务的密钥，避免向其他站点发送写作密钥。")
         reviewer_settings = {**settings, "base_url": settings.get("reviewer_base_url") or settings.get("base_url"), "api_key": settings.get("reviewer_api_key") or settings.get("api_key")}
-        result = _json_object(await _call(reviewer_settings, [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}], model=settings.get("reviewer_model") or settings.get("writer_model", ""), max_tokens=1600))
+        review_model = settings.get('reviewer_model') or (settings.get('writer_model', '') if not settings.get('reviewer_base_url') else '')
+        result = _json_object(await _call(reviewer_settings, [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}], model=review_model, max_tokens=1600))
         if not isinstance(result.get("summary"), str) or not isinstance(result.get("issues"), list):
             raise EngineError("评审模型返回格式不正确。")
         valid = []

@@ -18,6 +18,15 @@ PROVIDERS = [{
     'signup_url': 'https://modelscope.cn/my/myaccesstoken',
     'docs_url': 'https://github.com/modelscope/ms-agent/blob/fd6ea88422a399db8b303848dc6c6ec4e17daf6e/docs/zh/Projects/deep-research.md#L151',
     'free_note': '官方说明注册用户有每日免费 API 调用额度。具体额度、可用模型及认证要求以你的账号页面为准，不承诺无限或永久免费。示例模型来自官方仓库，请先测试当前账号能否使用。',
+}, {
+    'id': 'siliconflow',
+    'name': '硅基流动 · 已有 API Key',
+    'base_url': 'https://api.siliconflow.cn/v1',
+    'writer_model': '', 'reviewer_model': '', 'vision_model': '',
+    'signup_url': 'https://cloud.siliconflow.cn/account/ak',
+    'signup_label': '管理硅基流动密钥',
+    'docs_url': 'https://github.com/siliconflow/siliconcloud-cookbook/blob/main/examples/fine-tune/ft_and_original_performance_compare.py',
+    'free_note': '基础地址由硅基流动统一提供。点击平台密钥的复制按钮取得完整 Key；保存后可读取模型列表。写作模型从“模型广场”详情页复制完整 ID，评审可沿用写作模型。模型价格、余额和免费额度以账号控制台为准，拥有 Key 不代表调用免费。',
 }]
 
 
@@ -33,7 +42,7 @@ def select_role(settings, role):
                 raise engine.EngineError('独立评审服务需要自己的密钥，不会发送写作服务的密钥。')
         selected['base_url'] = review_url
         selected['api_key'] = settings.get('reviewer_api_key') or settings.get('api_key')
-        selected['model'] = settings.get('reviewer_model') or settings.get('writer_model')
+        selected['model'] = settings.get('reviewer_model') or (settings.get('writer_model') if not settings.get('reviewer_base_url') else '')
     else:
         selected['model'] = settings.get('vision_model' if role == 'vision' else 'writer_model')
     if not selected.get('api_key'):

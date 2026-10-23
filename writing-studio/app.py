@@ -112,6 +112,10 @@ def settings():
     saved = {**DEFAULT_SETTINGS, **store().get_config('settings', {})}
     if not saved['api_key']:
         saved['api_key'] = os.environ.get('WRITING_API_KEY', '')
+    for name in ('writer_model', 'reviewer_model', 'vision_model'):
+        saved[name] = str(saved.get(name) or '').strip()
+    if not saved['reviewer_base_url'].strip() and not saved['reviewer_model']:
+        saved['reviewer_model'] = saved['writer_model']
     return saved
 
 
@@ -126,12 +130,29 @@ def ledger():
     return current
 
 
+def configuration_gaps(data):
+    missing = []
+    if not data['api_key']:
+        missing.append('API密钥')
+    if not data['writer_model']:
+        missing.append('写作模型')
+    if data['reviewer_base_url'].strip() and not data['reviewer_model']:
+        missing.append('评审模型（独立评审服务）')
+    return missing
+
+
+def configuration_message():
+    missing = configuration_gaps(settings())
+    return '模型设置尚未完成，请填写并保存：' + '、'.join(missing) + '。尚未向服务商验证密钥。'
+
+
 def public_settings():
     data = settings()
+    missing = configuration_gaps(data)
     return {k: v for k, v in data.items() if k not in {'api_key', 'reviewer_api_key'}} | {
         'has_key': bool(data['api_key']),
         'has_reviewer_key': bool(data['reviewer_api_key']),
-        'configured': bool(data['api_key'] and data['writer_model'] and data['reviewer_model']),
+        'configured': not missing, 'missing_fields': missing,
         'used_tokens': ledger()['used_tokens'], 'usage_estimated': ledger()['estimated']}
 
 
@@ -226,7 +247,7 @@ async def review_current(task, config):
 async def process_task(task):
     config = call_settings()
     if task['mode'] == 'live' and not public_settings()['configured']:
-        raise engine.EngineError('请先在模型设置中填写 API 密钥、写作模型和评审模型。')
+        raise engine.EngineError(configuration_message())
     if not task['source_text'].strip():
         event(task, 'extracting', '正在读取征稿来源')
         try:
@@ -372,7 +393,7 @@ async def create_task(title: str = Form(''), source_type: str = Form('text'), co
     if source_type == 'images' and not 1 <= len(images) <= 8:
         raise HTTPException(422, '请上传 1 至 8 张截图')
     if mode == 'live' and not public_settings()['configured']:
-        raise HTTPException(400, '请先到模型设置配置 API 密钥及模型，或选择演示模式')
+        raise HTTPException(400, configuration_message())
     task = new_task(title.strip(), source_type, content.strip() if source_type == 'text' else '',
                     url.strip(), mode, max_rounds, author_notes.strip(), fiction)
     image_directory = DATA / 'uploads' / task['id']
@@ -557,6 +578,9 @@ class SettingsInput(BaseModel):
 
 @app.put('/api/settings')
 def save_settings(body: SettingsInput):
+    for key in (body.api_key, body.reviewer_api_key):
+        if key and any(marker * 3 in key for marker in ('*', '•', '●')):
+            raise HTTPException(422, '输入的是遮罩后的密钥，请点击平台的“复制”取得完整密钥，不要复制带星号或圆点的显示文字')
     parsed = urlsplit(body.base_url.strip())
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise HTTPException(422, 'API 地址必须是有效的 HTTPS 地址，且不能包含凭据、参数或片段')

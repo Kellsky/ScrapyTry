@@ -260,6 +260,55 @@ class SavedSettingsTests(unittest.TestCase):
         self.assertEqual(studio.settings()['reviewer_base_url'], 'https://reviewer.example/v1')
         self.assertNotIn('dummy-reviewer-key', blocked.text)
 
+    def test_writing_service_alone_configures_shared_model_for_reviews(self):
+        response = self.save(api_key='dummy-writer-key', writer_model='  writer-model  ',
+                             reviewer_model='', reviewer_base_url='')
+        self.assertEqual(response.status_code, 200, response.text)
+        settings = response.json()
+        self.assertTrue(settings['configured'], settings)
+        self.assertEqual(settings['writer_model'], 'writer-model')
+        self.assertEqual(settings['reviewer_model'], 'writer-model')
+        self.assertEqual(settings['missing_fields'], [])
+        self.assertEqual(studio.settings()['reviewer_model'], 'writer-model')
+        self.assertEqual(self.client.get('/api/bootstrap').json()['settings']['reviewer_model'], 'writer-model')
+        self.assertNotIn('dummy-writer-key', response.text)
+
+    def test_missing_writer_model_reports_model_without_invalidating_saved_key(self):
+        response = self.save(api_key='dummy-writer-key', writer_model='   ',
+                             reviewer_model='', reviewer_base_url='')
+        self.assertEqual(response.status_code, 200, response.text)
+        settings = response.json()
+        self.assertTrue(settings['has_key'])
+        self.assertFalse(settings['configured'])
+        self.assertIn('写作模型', settings['missing_fields'])
+        self.assertNotIn('API密钥', settings['missing_fields'])
+        self.assertNotIn('dummy-writer-key', response.text)
+
+    def test_independent_review_service_requires_its_own_model(self):
+        response = self.save(api_key='dummy-writer-key', reviewer_base_url='https://reviewer.example/v1',
+                             reviewer_api_key='dummy-reviewer-key', reviewer_model='   ')
+        self.assertEqual(response.status_code, 200, response.text)
+        settings = response.json()
+        self.assertFalse(settings['configured'])
+        self.assertEqual(settings['reviewer_model'], '')
+        self.assertEqual(studio.settings()['reviewer_model'], '')
+        self.assertIn('评审模型（独立评审服务）', settings['missing_fields'])
+        self.assertNotIn('API密钥', settings['missing_fields'])
+
+    def test_masked_keys_rejected_without_changing_saved_configuration(self):
+        saved = self.save(api_key='dummy-writer-key')
+        self.assertEqual(saved.status_code, 200, saved.text)
+        before = studio.settings()
+        for field, masked in [('api_key', 'sk-test********tail'),
+                              ('api_key', 'sk-••••1234'),
+                              ('reviewer_api_key', 'ab●●●')]:
+            with self.subTest(field=field, mask=masked):
+                response = self.save(**{field: masked})
+                self.assertEqual(response.status_code, 422, response.text)
+                self.assertEqual(studio.settings(), before)
+                self.assertNotIn(masked, response.text)
+                self.assertNotIn('dummy-writer-key', response.text)
+
     def test_provider_catalog_is_public_and_credential_free(self):
         response = self.client.get('/api/providers')
         self.assertEqual(response.status_code, 200, response.text)

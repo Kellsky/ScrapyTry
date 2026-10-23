@@ -76,7 +76,7 @@ function safeExternal(value) {
 function providerDetails(provider) {
   if(!provider)return '<p class="provider-note">使用你自己的兼容 API 地址与模型名称。密钥请在下方填写，保存前不会发起请求。</p>';
   const signup=safeExternal(provider.signup_url),docs=safeExternal(provider.docs_url);
-  return `<div class="provider-details"><p>${esc(provider.free_note||'免费额度和可用模型以服务商当前账号控制台为准。')}</p><div class="provider-links">${signup?`<a href="${esc(signup)}" target="_blank" rel="noopener noreferrer">${icon('link')}官方领取免费 Token ${icon('arrow')}</a>`:''}${docs?`<a href="${esc(docs)}" target="_blank" rel="noopener noreferrer">查看官方说明 ${icon('arrow')}</a>`:''}</div><small>使用你自己的账号与 Token；无需将密钥发给聊天助手。免费额度可能调整，不代表永久免费或无限使用。</small></div>`;
+  return `<div class="provider-details"><p>${esc(provider.free_note||'免费额度和可用模型以服务商当前账号控制台为准。')}</p><div class="provider-links">${signup?`<a href="${esc(signup)}" target="_blank" rel="noopener noreferrer">${icon('link')}${esc(provider.signup_label||'官方领取免费 Token')} ${icon('arrow')}</a>`:''}${docs?`<a href="${esc(docs)}" target="_blank" rel="noopener noreferrer">查看官方说明 ${icon('arrow')}</a>`:''}</div><small>使用你自己的账号与 Token；无需将密钥发给聊天助手。免费额度可能调整，不代表永久免费或无限使用。</small></div>`;
 }
 function settingsPage() {
   const s=state.settings,providers=state.providers||[];
@@ -85,13 +85,13 @@ function settingsPage() {
     <div class="settings-layout"><form id="settings-form" class="form-panel">
       <section class="provider-onboarding" aria-labelledby="provider-heading">
         <span class="eyebrow">START WITH AN OFFICIAL FREE TIER</span>
-        <h2 id="provider-heading">先用官方免费额度，把流程跑起来。</h2>
-        <p>领取自己的 Token，填入模型设置，再测试实际连接。</p>
+        <h2 id="provider-heading">接好模型，开始真实写作。</h2>
+        <p>填写平台统一地址、自己的密钥和模型名称，再测试连接。</p>
         <div class="provider-picker"><label class="form-field"><span>接入方案</span><select id="provider-select" aria-label="选择 API 接入方案">${providers.map(p=>`<option value="${esc(p.id)}" ${selected===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}<option value="custom" ${selected==='custom'?'selected':''}>自定义兼容服务</option></select></label><button class="secondary-btn" id="apply-provider" type="button" ${selected==='custom'?'disabled':''}>${icon('edit')}填入表单</button></div>
         <div id="provider-info">${providerDetails(providers.find(p=>p.id===selected))}</div>
         <p class="provider-apply-note" id="provider-apply-note">预设只填入地址和模型，不会保存或调用 API；已有独立评审服务会保留。</p>
       </section>
-      <div class="settings-summary">${icon(s.configured?'check':'info')}<div><strong>${s.configured?'模型设置已保存，连接状态请实际测试':'当前可以完整体验演示模式'}</strong><small>${s.configured?'填写密钥不等于连接成功；下方可测试写作与评审服务。':'演示使用预设内容。保存可用 API 后，才能生成真实稿件。'}</small></div></div>
+      <div class="settings-summary">${icon(s.configured?'check':'info')}<div><strong>${s.configured?'模型设置已保存，连接状态请实际测试':'模型设置尚未完成'}</strong><small>${s.configured?'填写密钥不等于连接成功；下方可测试写作与评审服务。':'演示使用预设内容。保存可用 API 后，才能生成真实稿件。'}</small></div></div>
       <section class="form-section"><h2>写作服务</h2><p>接入支持 OpenAI Chat Completions 格式的模型 API。</p><div class="form-grid">
         ${field('API 基础地址','base_url',s.base_url||'https://api.openai.com/v1','填写 API 根路径，不包含 /chat/completions。','url')}
         ${field('API Key / Token','api_key','',s.has_key?'已保存密钥；同一服务留空会保留。更换服务需填写新 Token。':'填写自己的服务商 Token，服务端保存，不返回浏览器。','password')}
@@ -101,7 +101,7 @@ function settingsPage() {
       <section class="form-section"><h2>独立评审服务</h2><p>可让另一家模型点评稿件；地址留空时沿用写作服务。</p><div class="form-grid">
         ${field('评审 API 地址（可选）','reviewer_base_url',s.reviewer_base_url||'','使用独立服务时需填写对应的 API Token。','url')}
         ${field('评审 API Key（可选）','reviewer_api_key','',s.has_reviewer_key?'已保存独立密钥；同一服务留空保留。换服务需填新密钥。':'独立评审服务的 Token；沿用写作服务时可留空。','password')}
-        ${field('评审模型','reviewer_model',s.reviewer_model||'','两个评审会话分别核对征稿要求与表达。')}
+        ${field('评审模型（同平台可留空）','reviewer_model',s.reviewer_model||'','同平台留空自动沿用写作模型；独立评审服务请填写自己的模型 ID。')}
       </div></section>
       <section class="form-section"><h2>用量上限</h2><div class="form-grid">
         ${field('每日 token 上限','daily_limit',s.daily_limit||100000,'这是应用自己的调用上限，不能替代服务商的免费额度。','number')}
@@ -146,13 +146,14 @@ function settingsHaveUnsavedChanges() {
   if(form.elements.api_key.value||form.elements.reviewer_api_key.value)return true;
   return ['base_url','writer_model','reviewer_model','vision_model','reviewer_base_url','daily_limit'].some(name=>String(form.elements[name].value).trim()!==String(state.settings[name]??(name==='daily_limit'?100000:'')).trim());
 }
+function settingsGapMessage(){const missing=state.settings.missing_fields||[];return missing.length?`请先填写并保存：${missing.join('、')}。尚未向服务商验证密钥。`:'请先保存 API 地址、密钥和写作模型；同平台评审模型可留空沿用。';}
 function connectionResult(kind,message) {
   const box=$('#settings-connection-result');if(box)box.innerHTML=`<div class="connection-result ${kind}">${kind==='pending'?'<span class="spinner"></span>':icon(kind==='success'?'check':'info')}<span>${esc(message)}</span></div>`;
 }
 async function modelOperation(action,role) {
   if(state.settingsActionBusy)return;
   if(settingsHaveUnsavedChanges()){connectionResult('warning','表单有未保存的修改。请先点击“保存模型设置”，再测试连接或读取模型；当前输入已保留。');return;}
-  if(action==='test'&&!state.settings.configured){connectionResult('warning','请先填写并保存自己的 API Token、写作模型与评审模型，再进行测试。');return;}
+  if(action==='test'&&!state.settings.configured){connectionResult('warning',settingsGapMessage());return;}
   if(action==='models'&&!(role==='reviewer'?(state.settings.has_reviewer_key||state.settings.has_key):state.settings.has_key)){connectionResult('warning','请先填写并保存该服务的 Token，再读取当前账号的模型列表。');return;}
   if(action==='test'&&role==='vision'&&!state.settings.vision_model){connectionResult('warning','截图模型尚未配置。可先填写支持图片输入的模型并保存，也可通过粘贴正文开始写作。');return;}
   const roleName={writer:'写作',reviewer:'评审',vision:'截图'}[role]||'模型';
@@ -236,7 +237,7 @@ function renderCreate() {
   $$('[data-move-up],[data-move-down]').forEach(el=>el.addEventListener('click',()=>{syncCreate();const up=el.dataset.moveUp!==undefined;const i=Number(up?el.dataset.moveUp:el.dataset.moveDown),next=i+(up?-1:1);[c.files[i],c.files[next]]=[c.files[next],c.files[i]];renderCreate();}));
 }
 function addFiles(files) { syncCreate();const c=state.create;for(const file of files){if(c.files.length>=8){toast('一次最多上传 8 张截图',true);break;}if(!['image/png','image/jpeg','image/webp'].includes(file.type)){toast('请选择 PNG、JPG 或 WebP 图片',true);continue;}if(file.size>5*1024*1024){toast(`${file.name} 超过 5MB`,true);continue;}c.files.push({file,preview:URL.createObjectURL(file)});}renderCreate(); }
-async function submitCreate(e) { e.preventDefault();if(state.busy)return;syncCreate();const c=state.create;if(c.source_type==='images'&&!c.files.length){$('#create-error').innerHTML='<div class="error-inline">请至少选择一张截图。</div>';return;}if(c.mode==='live'&&!state.settings.configured){$('#create-error').innerHTML='<div class="error-inline">请先在“模型设置”配置可用的 API，再创建真实任务。</div>';return;}
+async function submitCreate(e) { e.preventDefault();if(state.busy)return;syncCreate();const c=state.create;if(c.source_type==='images'&&!c.files.length){$('#create-error').innerHTML='<div class="error-inline">请至少选择一张截图。</div>';return;}if(c.mode==='live'&&!state.settings.configured){$('#create-error').innerHTML=`<div class="error-inline">${esc(settingsGapMessage())}</div>`;return;}
   const data=new FormData();for(const name of ['title','source_type','mode','max_rounds','author_notes'])data.append(name,c[name]);data.append('fiction',String(c.fiction));if(c.source_type==='text')data.append('content',c.content);if(c.source_type==='url')data.append('url',c.url);for(const item of c.files)data.append('images',item.file);
   const button=$('button[type="submit"]',$('#create-form'));button.disabled=true;button.innerHTML='<span class="spinner" style="width:14px;height:14px"></span>正在创建';state.busy=true;
   try{const task=await api('/api/tasks',{method:'POST',body:data});state.tasks.unshift(task);state.busy=false;closeModal();location.hash=`task/${encodeURIComponent(task.id)}`;toast('写作任务已创建，后台会自动推进');}catch(error){$('#create-error').innerHTML=`<div class="error-inline">${esc(error.message)}</div>`;button.disabled=false;button.innerHTML=`${icon('spark')}开始写作`;state.busy=false;}
