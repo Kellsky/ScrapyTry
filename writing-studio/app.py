@@ -244,6 +244,8 @@ def preflight(task):
 def draft_checks(task):
     materials = '\n'.join(filter(None, [task['author_notes'], profile()['materials']]))
     checks = engine.check_draft(task['draft'], task['requirements'], fiction=task['fiction'], author_notes=materials)
+    if engine.repeats_notice(task['draft'], task['source_text']):
+        checks.append({'label': '投稿文章', 'status': 'fail', 'detail': '当前内容主要是征稿原文，尚未生成投稿文章，请重新分析并写作。'})
     for blocker in preflight(task):
         checks.append({'label': '写作前提', 'status': 'fail', 'detail': blocker})
     if task['mode'] == 'demo':
@@ -308,7 +310,7 @@ async def process_task(task):
     if task['_action'] == 'refine':
         # The instruction is consumed only when a new version is durably saved.
         event(task, 'revising', '正在按你的定点意见修改')
-        task['draft'] = await engine.revise_draft(task['draft'], task['requirements'], task['reviews'], profile=profile(), author_notes=task['author_notes'], instruction=task.get('_instruction', ''), fiction=task['fiction'], settings=config, mode=task['mode'])
+        task['draft'] = await engine.revise_draft(task['draft'], task['requirements'], task['reviews'], profile=profile(), author_notes=task['author_notes'], instruction=task.get('_instruction', ''), fiction=task['fiction'], settings=config, mode=task['mode'], source_text=task['source_text'])
         task['_action'] = 'finish_refine'
         save_version(task, '按作者意见修改')
     if not task['draft']:
@@ -319,7 +321,7 @@ async def process_task(task):
     while task['_action'] == 'create' and needs_revision(task) and task['round'] < task['max_rounds']:
         event(task, 'revising', f"自动修改第 {task['round'] + 1} 轮：综合评审意见")
         previous = task['draft']
-        task['draft'] = await engine.revise_draft(previous, task['requirements'], task['reviews'], profile=profile(), author_notes=task['author_notes'], instruction='', fiction=task['fiction'], settings=config, mode=task['mode'])
+        task['draft'] = await engine.revise_draft(previous, task['requirements'], task['reviews'], profile=profile(), author_notes=task['author_notes'], instruction='', fiction=task['fiction'], settings=config, mode=task['mode'], source_text=task['source_text'])
         task['round'] += 1
         save_version(task, f"自动修改 · 第 {task['round']} 轮")
         await review_current(task, config)
@@ -508,8 +510,11 @@ def approve_task(task_id: str, body: Approval):
     if not body.acknowledged:
         raise HTTPException(422, '请先确认已核对原文、真实事实和 AI 使用要求')
     task['checks'] = draft_checks(task)
-    if any(check['status'] == 'fail' for check in task['checks']):
-        raise HTTPException(409, '仍有硬性要求未满足，请先修改稿件或核实征稿内容')
+    failed = [check['detail'] for check in task['checks'] if check['status'] == 'fail']
+    if failed:
+        task['blockers'] = failed
+        store().save(task)
+        raise HTTPException(409, '仍有硬性要求未满足：' + failed[0])
     event(task, 'approved', '作者已完成审阅；尚未发送或投稿')
     task['approved_at'] = now()
     store().save(task)
@@ -520,6 +525,7 @@ class Retry(BaseModel):
     content: str | None = Field(default=None, max_length=30000)
     author_notes: str | None = Field(default=None, max_length=12000)
     fiction: bool | None = None
+    regenerate: bool = False
 
 
 @app.post('/api/tasks/{task_id}/retry', status_code=202)
@@ -529,8 +535,12 @@ def retry_task(task_id: str, body: Retry):
     if body.content is not None:
         if len(body.content.strip()) < 10:
             raise HTTPException(422, '请补充至少 10 个字符的征稿正文')
-        task.update(source_text=body.content.strip(), source_type='text', requirements={}, draft='',
+        task.update(source_text=body.content.strip(), source_type='text', requirements={}, draft='', word_count=0,
                     reviews=[], checks=[], versions=[], round=0, _reviewed_version=-1, _action='create')
+    elif body.regenerate:
+        # Explicitly regenerate from the existing source without losing history.
+        task.update(requirements={}, draft='', word_count=0, reviews=[], checks=[], round=0,
+                    _reviewed_version=-1, _action='create')
     if body.author_notes is not None:
         task['author_notes'] = body.author_notes
     if body.fiction is not None:
@@ -538,7 +548,7 @@ def retry_task(task_id: str, body: Retry):
     if task['_action'] == 'complete':
         task['_action'] = 'create'
     task['blockers'] = []
-    event(task, 'queued', '已补充信息，继续处理未完成的步骤')
+    event(task, 'queued', '已请求重新分析征稿并创作文章，历史版本保留' if body.regenerate and body.content is None else '已补充信息，继续处理未完成的步骤')
     return public_task(task)
 
 

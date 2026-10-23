@@ -355,8 +355,37 @@ async def write_draft(requirements: dict, *, source_text: str, profile: dict, au
     if len(source_text) > 30000:
         raise EngineError("征稿原文过长，请选取一条完整征稿信息后再生成。")
     material = {"requirements": requirements, "author_profile": profile, "author_notes": author_notes, "fiction_allowed_by_author": fiction, "source": source_text}
-    prompt = "请根据以下资料生成完整中文稿件，只输出标题与正文。遵守体裁和明确的字数范围；不要在正文中附点评或自评分。若作者未授权虚构，不得把虚构细节写成作者亲身经历。不能确认的事实使用待核实标记，不能伪造。保留原文的 AI 使用约束。资料JSON：" + json.dumps(material, ensure_ascii=False)
-    return await _call(settings, [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}], model=settings.get("writer_model", ""), max_tokens=_output_limit(requirements))
+    prompt = "请根据以下资料生成完整中文投稿文章，只输出你创作的标题与正文。source 是征稿公告，requirements 是从公告提取的创作要求；它们不是待改写的文章。请围绕主题创作符合体裁、字数和栏目要求的作品，不要复制、复述或润色征稿公告，不要把征稿主题、收稿通知、投稿邮箱、稿酬和截止日期拼成正文。不要输出要求清单、写作建议、点评或自评分。若作者未授权虚构，不得把虚构细节写成作者亲身经历。不能确认的事实使用待核实标记，不能伪造。遵守原文的 AI 使用约束。资料JSON：" + json.dumps(material, ensure_ascii=False)
+    return await _article_response(settings, [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}], requirements=requirements, source_text=source_text)
+
+
+def repeats_notice(draft: str, source_text: str) -> bool:
+    """Catch copied notices, allowing for formatting and a short added heading.
+
+    This checks a specific failure mode, not originality or literary quality.
+    A short quotation in an otherwise new article is intentionally permitted.
+    """
+    normalize = lambda value: re.sub(r"[\W_]+", "", value.casefold())
+    article, notice = normalize(draft), normalize(source_text)
+    if not article or not notice:
+        return False
+    if article == notice:
+        return True
+    if min(len(article), len(notice)) < 40:
+        return False
+    return ((notice in article and len(notice) >= len(article) * 0.65)
+            or article in notice)
+
+
+async def _article_response(settings: dict, messages: list[dict], *, requirements: dict, source_text: str) -> str:
+    # Do not persist an echoed notice or pass it to reviewers as an article.
+    for attempt in range(2):
+        draft = await _call(settings, messages, model=settings.get("writer_model", ""), max_tokens=_output_limit(requirements))
+        if not repeats_notice(draft, source_text):
+            return draft
+        if attempt == 0:
+            messages = [*messages[:-1], {**messages[-1], "content": messages[-1]["content"] + "\n输出校验反馈：上次答复主要重复了征稿原文，没有生成投稿文章。请重新创作一篇符合要求的完整作品；征稿公告只作约束，不是作品正文。只返回新文章的标题和正文。"}]
+    raise EngineError("写作模型连续两次主要返回征稿原文，未生成投稿文章，已停止处理。未保存无效输出，历史版本已保留。请更换写作模型或重试。")
 
 
 def check_draft(draft: str, requirements: dict, *, fiction: bool, author_notes: str) -> list[dict]:
@@ -427,7 +456,7 @@ async def review_draft(draft: str, requirements: dict, *, settings: dict, mode: 
     return await asyncio.gather(review("征稿编辑", "检查主题、体裁、结构、字数与征稿要求"), review("文字编辑", "检查逻辑、表达、套话、事实依据与人物可信度"))
 
 
-async def revise_draft(draft: str, requirements: dict, reviews: list[dict], *, profile: dict, author_notes: str, instruction: str, fiction: bool, settings: dict, mode: str) -> str:
+async def revise_draft(draft: str, requirements: dict, reviews: list[dict], *, profile: dict, author_notes: str, instruction: str, fiction: bool, settings: dict, mode: str, source_text: str = '') -> str:
     if requirements.get("ai_policy") == "forbidden":
         raise EngineError("征稿明确禁止 AI 创作，任务已停止自动改写。")
     if len(draft) > 30000:
@@ -440,8 +469,8 @@ async def revise_draft(draft: str, requirements: dict, reviews: list[dict], *, p
             # Do not silently pretend the demo understands arbitrary instructions.
             result = result + "\n\n（演示修改记录：已保存你的意见“" + instruction.strip()[:160] + "”；任意改写需要接入真实模型。可在编辑器中继续修改。）"
         return result
-    prompt = "请根据征稿硬性要求、两路评审意见和作者意见修改稿件，只输出完整标题与正文。不要机械堆叠冲突建议；硬性要求优先，保留文章主线。不要新增无法证实的真实经历或数据。不能确认的事实继续保留待核实标记。资料JSON：" + json.dumps({"requirements": requirements, "draft": draft, "reviews": reviews, "profile": profile, "author_notes": author_notes, "instruction": instruction, "fiction_allowed": fiction}, ensure_ascii=False)
-    return await _call(settings, [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}], model=settings.get("writer_model", ""), max_tokens=_output_limit(requirements))
+    prompt = "请根据征稿硬性要求、两路评审意见和作者意见修改投稿文章，只输出修改后的完整标题与正文。draft 是文章，requirements 中的 source_excerpt 是征稿公告的依据，不是文章；不要用征稿通知、投稿说明或要求清单替换作品。不要机械堆叠冲突建议；硬性要求优先，保留文章主线。不要新增无法证实的真实经历或数据。不能确认的事实继续保留待核实标记。资料JSON：" + json.dumps({"requirements": requirements, "draft": draft, "reviews": reviews, "profile": profile, "author_notes": author_notes, "instruction": instruction, "fiction_allowed": fiction}, ensure_ascii=False)
+    return await _article_response(settings, [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}], requirements=requirements, source_text=source_text or requirements.get('source_excerpt', ''))
 
 
 async def ocr_images(images: list[tuple[bytes, str]], *, settings: dict) -> str:
