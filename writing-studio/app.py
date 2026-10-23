@@ -146,6 +146,33 @@ def configuration_message():
     return '模型设置尚未完成，请填写并保存：' + '、'.join(missing) + '。尚未向服务商验证密钥。'
 
 
+def saved_role_status(data):
+    """Describe saved readiness without exposing credentials or calling providers."""
+    statuses = {}
+    for role, model_label in (('writer', '写作模型'), ('reviewer', '评审模型'), ('vision', '视觉 / OCR 模型')):
+        reviewer = role == 'reviewer'
+        base_url = (data['reviewer_base_url'] or data['base_url']) if reviewer else data['base_url']
+        model = data['reviewer_model'] if reviewer else data['vision_model' if role == 'vision' else 'writer_model']
+        try:
+            selected = providers.select_role(data, role)
+            has_key = bool(selected.get('api_key'))
+            model = selected.get('model') or ''
+        except engine.EngineError:
+            # In particular, never mark a primary key usable for another host.
+            has_key = False
+        inherited = reviewer and has_key and not data['reviewer_api_key']
+        key_source = ('reviewer' if reviewer and data['reviewer_api_key'] else 'writer') if has_key else 'none'
+        missing = []
+        if not has_key:
+            missing.append('评审 API 密钥' if reviewer else 'API 密钥')
+        if not model:
+            missing.append(model_label)
+        statuses[role] = {'has_key': has_key, 'key_inherited': bool(inherited),
+                          'key_source': key_source, 'base_url': base_url, 'model': model,
+                          'ready': not missing, 'missing_fields': missing}
+    return statuses
+
+
 def public_settings():
     data = settings()
     missing = configuration_gaps(data)
@@ -153,6 +180,7 @@ def public_settings():
         'has_key': bool(data['api_key']),
         'has_reviewer_key': bool(data['reviewer_api_key']),
         'configured': not missing, 'missing_fields': missing,
+        'role_status': saved_role_status(data),
         'used_tokens': ledger()['used_tokens'], 'usage_estimated': ledger()['estimated']}
 
 
@@ -352,6 +380,11 @@ def provider_presets():
 
 class ModelRole(BaseModel):
     role: Literal['writer', 'reviewer', 'vision'] = 'writer'
+
+
+@app.get('/api/settings/status')
+def saved_settings_status():
+    return public_settings()
 
 
 @app.post('/api/settings/models')

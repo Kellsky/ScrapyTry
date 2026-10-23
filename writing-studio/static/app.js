@@ -78,6 +78,50 @@ function providerDetails(provider) {
   const signup=safeExternal(provider.signup_url),docs=safeExternal(provider.docs_url);
   return `<div class="provider-details"><p>${esc(provider.free_note||'免费额度和可用模型以服务商当前账号控制台为准。')}</p><div class="provider-links">${signup?`<a href="${esc(signup)}" target="_blank" rel="noopener noreferrer">${icon('link')}${esc(provider.signup_label||'官方领取免费 Token')} ${icon('arrow')}</a>`:''}${docs?`<a href="${esc(docs)}" target="_blank" rel="noopener noreferrer">查看官方说明 ${icon('arrow')}</a>`:''}</div><small>使用你自己的账号与 Token；无需将密钥发给聊天助手。免费额度可能调整，不代表永久免费或无限使用。</small></div>`;
 }
+function modelRoleStatus(role, settings=state.settings) {
+  const authoritative=settings.role_status?.[role];
+  if(authoritative&&typeof authoritative==='object')return {
+    ...authoritative,has_key:authoritative.has_key===true,key_inherited:authoritative.key_inherited===true,
+    ready:authoritative.ready===true,missing_fields:Array.isArray(authoritative.missing_fields)?authoritative.missing_fields:[],
+    base_url:text(authoritative.base_url),model:text(authoritative.model),
+  };
+  // Compatibility for public metadata from an older server; never inspect a
+  // password input to decide whether a credential was previously saved.
+  const review=role==='reviewer',reviewBase=text(settings.reviewer_base_url).trim();
+  const base=review?(reviewBase||settings.base_url):settings.base_url;
+  const sameService=!reviewBase||settingsOrigin(reviewBase)===settingsOrigin(settings.base_url);
+  const hasOwn=review&&settings.has_reviewer_key===true;
+  const inherited=review&&!hasOwn&&sameService&&settings.has_key===true;
+  const hasKey=review?(hasOwn||inherited):settings.has_key===true;
+  const model=text(review?(settings.reviewer_model||(!reviewBase?settings.writer_model:'')):settings[role==='vision'?'vision_model':'writer_model']).trim();
+  const roleName={writer:'写作',reviewer:'评审',vision:'截图'}[role]||'模型';
+  const missing=[];if(!hasKey)missing.push(`${roleName}服务密钥`);if(!model)missing.push(`${roleName}模型 ID`);
+  return {has_key:hasKey,key_inherited:inherited,key_source:hasOwn?'reviewer':hasKey?'writer':'none',base_url:base||'',model,ready:!missing.length,missing_fields:missing};
+}
+function keyField(label,name,role) {
+  return `<label class="form-field key-field"><span class="key-field-label"><span>${esc(label)}</span><span class="saved-key-badge" data-key-status="${role}"></span></span><input name="${name}" type="password" value="" autocomplete="new-password" spellcheck="false"><small data-key-hint="${role}"></small></label>`;
+}
+function updateKeyStatuses() {
+  const form=$('#settings-form');if(!form)return;
+  for(const [role,name] of [['writer','api_key'],['reviewer','reviewer_api_key']]){
+    const input=form.elements[name],badge=$(`[data-key-status="${role}"]`,form),hint=$(`[data-key-hint="${role}"]`,form);if(!input||!badge||!hint)continue;
+    const saved=modelRoleStatus(role),pending=Boolean(input.value.trim());
+    input.placeholder=saved.key_inherited?'沿用写作密钥，无需重复填写':saved.has_key?'已保存（已隐藏），留空保留':'粘贴完整 Key / Token';
+    badge.className=`saved-key-badge ${pending?'pending':saved.has_key?'saved':'missing'}`;
+    badge.textContent=pending?'输入待保存':saved.key_inherited?'沿用写作密钥':saved.has_key?'已保存':'未保存';
+    if(pending)hint.textContent=saved.has_key?'新输入尚未保存；保存后将替换当前密钥。':'密钥已输入，点击“保存模型设置”后才会用于测试。';
+    else if(saved.key_inherited)hint.textContent='沿用已保存的写作密钥，无需重复填写。'+(text(state.settings.reviewer_base_url).trim()?'仍需填写评审模型 ID。':'默认沿用写作模型，也可另选评审模型。');
+    else if(saved.has_key)hint.textContent='密钥已安全保存并隐藏，空白不表示丢失。无需再次填写；测试会使用已保存密钥。更换服务时需填写新密钥。';
+    else hint.textContent=role==='reviewer'?'同平台评审可沿用写作密钥；独立服务需保存自己的密钥。':'尚未保存写作服务密钥。请填写完整 Token 并保存，不要粘贴平台显示的星号。';
+  }
+}
+function updateReadinessSummary() {
+  const summary=$('#settings-readiness-summary');if(!summary)return;
+  const writer=modelRoleStatus('writer'),reviewer=modelRoleStatus('reviewer');
+  const ready=writer.ready&&reviewer.ready;
+  const missing=[...new Set([...writer.missing_fields,...reviewer.missing_fields])];
+  summary.innerHTML=`${icon(ready?'check':'info')}<div><strong>${ready?'写作与评审设置已保存，可分别测试连接':'已保存状态：'+(state.settings.has_key||state.settings.has_reviewer_key?'密钥已保留':'尚未保存密钥')}</strong><small>${ready?'密码框保持空白以保护密钥；点击下方测试会使用已保存的密钥。':missing.length?'仍需补充：'+esc(missing.join('、'))+'。已就绪的服务仍可单独测试。':'请按下方各服务的保存状态补充设置。'}</small></div>`;
+}
 function settingsPage() {
   const s=state.settings,providers=state.providers||[];
   const selected=providers.find(p=>p.base_url===s.base_url)?.id||(!s.configured?providers[0]?.id:'custom')||'custom';
@@ -91,16 +135,16 @@ function settingsPage() {
         <div id="provider-info">${providerDetails(providers.find(p=>p.id===selected))}</div>
         <p class="provider-apply-note" id="provider-apply-note">预设只填入地址和模型，不会保存或调用 API；已有独立评审服务会保留。</p>
       </section>
-      <div class="settings-summary">${icon(s.configured?'check':'info')}<div><strong>${s.configured?'模型设置已保存，连接状态请实际测试':'模型设置尚未完成'}</strong><small>${s.configured?'填写密钥不等于连接成功；下方可测试写作与评审服务。':'演示使用预设内容。保存可用 API 后，才能生成真实稿件。'}</small></div></div>
+      <div class="settings-summary" id="settings-readiness-summary"></div>
       <section class="form-section"><h2>写作服务</h2><p>接入支持 OpenAI Chat Completions 格式的模型 API。</p><div class="form-grid">
         ${field('API 基础地址','base_url',s.base_url||'https://api.openai.com/v1','填写 API 根路径，不包含 /chat/completions。','url')}
-        ${field('API Key / Token','api_key','',s.has_key?'已保存密钥；同一服务留空会保留。更换服务需填写新 Token。':'填写自己的服务商 Token，服务端保存，不返回浏览器。','password')}
+        ${keyField('API Key / Token','api_key','writer')}
         ${field('写作模型','writer_model',s.writer_model||'','先应用官方预设，或读取账号当前可用模型。')}
         ${field('视觉 / OCR 模型（可选）','vision_model',s.vision_model||'','只有支持图片输入的模型才能识别截图；可先留空。')}
       </div><div id="key-change-warning" aria-live="polite"></div></section>
       <section class="form-section"><h2>独立评审服务</h2><p>可让另一家模型点评稿件；地址留空时沿用写作服务。</p><div class="form-grid">
         ${field('评审 API 地址（可选）','reviewer_base_url',s.reviewer_base_url||'','使用独立服务时需填写对应的 API Token。','url')}
-        ${field('评审 API Key（可选）','reviewer_api_key','',s.has_reviewer_key?'已保存独立密钥；同一服务留空保留。换服务需填新密钥。':'独立评审服务的 Token；沿用写作服务时可留空。','password')}
+        ${keyField('评审 API Key（可选）','reviewer_api_key','reviewer')}
         ${field('评审模型（同平台可留空）','reviewer_model',s.reviewer_model||'','同平台留空自动沿用写作模型；独立评审服务请填写自己的模型 ID。')}
       </div></section>
       <section class="form-section"><h2>用量上限</h2><div class="form-grid">
@@ -112,7 +156,7 @@ function settingsPage() {
         <div class="model-test-buttons"><button class="secondary-btn" type="button" data-model-action="test" data-role="writer">${icon('spark')}测试写作</button><button class="secondary-btn" type="button" data-model-action="test" data-role="reviewer">${icon('review')}测试评审</button><button class="secondary-btn" type="button" data-model-action="test" data-role="vision">${icon('image')}测试截图模型</button></div>
         <div class="model-catalog-controls"><label class="form-field"><span>读取账号可用模型</span><select id="model-catalog-role" aria-label="选择读取哪一个服务的模型"><option value="writer">写作服务</option><option value="reviewer">评审服务</option><option value="vision">截图服务</option></select></label><button class="secondary-btn" type="button" id="load-models">${icon('refresh')}读取可用模型</button></div>
         <p class="inline-note">读取列表后可在模型输入框选择建议，也可手动填写模型 ID。出现在列表中不代表支持图片输入。</p>
-        <div id="settings-connection-result" aria-live="polite"></div><datalist id="model-options-writer"></datalist><datalist id="model-options-reviewer"></datalist><datalist id="model-options-vision"></datalist>
+        <div id="settings-connection-target" class="connection-target" aria-live="polite"></div><div id="settings-connection-result" aria-live="polite"></div><datalist id="model-options-writer"></datalist><datalist id="model-options-reviewer"></datalist><datalist id="model-options-vision"></datalist>
       </section>
     </form><aside class="form-aside"><span class="eyebrow">THREE SIMPLE STEPS</span><h3>接好模型，<br>开始真实写作。</h3><ol class="provider-steps"><li><strong>官方领取 Token</strong><span>注册自己的服务商账号，查看当前免费额度和使用规则。</span></li><li><strong>填入并保存</strong><span>选择预设、填写 Token；独立评审服务使用各自的密钥。</span></li><li><strong>测试，再开始任务</strong><span>写作、评审连接成功后，创建任务并选择“真实模型”。</span></li></ol><p>多模型互评帮助打磨文章；事实仍需要来源或你的核对。</p></aside></div>`);
   const form=$('#settings-form');form.addEventListener('submit',saveSettings);
@@ -130,9 +174,11 @@ function settingsPage() {
   $('#load-models').addEventListener('click',()=>modelOperation('models',$('#model-catalog-role').value));
   for(const role of ['writer','reviewer','vision'])form.elements[`${role}_model`].setAttribute('list',`model-options-${role}`);
   updateKeyWarning();
+  updateKeyStatuses();updateReadinessSummary();
 }
 function settingsOrigin(value) {try{return new URL(value).origin;}catch{return '';}}
 function updateKeyWarning() {
+  updateKeyStatuses();
   const form=$('#settings-form'),box=$('#key-change-warning');if(!form||!box)return;
   const messages=[];
   const current=settingsOrigin(form.elements.base_url.value),saved=settingsOrigin(state.settings.base_url);
@@ -150,16 +196,31 @@ function settingsGapMessage(){const missing=state.settings.missing_fields||[];re
 function connectionResult(kind,message) {
   const box=$('#settings-connection-result');if(box)box.innerHTML=`<div class="connection-result ${kind}">${kind==='pending'?'<span class="spinner"></span>':icon(kind==='success'?'check':'info')}<span>${esc(message)}</span></div>`;
 }
+function roleGapMessage(role,metadata) {
+  const label={writer:'写作',reviewer:'评审',vision:'截图'}[role]||'模型';
+  const missing=metadata.missing_fields.length?metadata.missing_fields.join('、'):'对应的模型设置';
+  return `${label}服务仍需填写并保存：${missing}。${metadata.has_key?'该服务密钥已保存，不需要重复填写。':'该服务尚无可用的已保存密钥。'}`;
+}
 async function modelOperation(action,role) {
   if(state.settingsActionBusy)return;
-  if(settingsHaveUnsavedChanges()){connectionResult('warning','表单有未保存的修改。请先点击“保存模型设置”，再测试连接或读取模型；当前输入已保留。');return;}
-  if(action==='test'&&!state.settings.configured){connectionResult('warning',settingsGapMessage());return;}
-  if(action==='models'&&!(role==='reviewer'?(state.settings.has_reviewer_key||state.settings.has_key):state.settings.has_key)){connectionResult('warning','请先填写并保存该服务的 Token，再读取当前账号的模型列表。');return;}
-  if(action==='test'&&role==='vision'&&!state.settings.vision_model){connectionResult('warning','截图模型尚未配置。可先填写支持图片输入的模型并保存，也可通过粘贴正文开始写作。');return;}
+  if(settingsHaveUnsavedChanges()){connectionResult('warning','表单有未保存的修改（可能包含浏览器自动填入的密码）。请先保存再测试；这不表示已保存的密钥丢失，当前输入已保留。');return;}
   const roleName={writer:'写作',reviewer:'评审',vision:'截图'}[role]||'模型';
-  connectionResult('pending',action==='test'?`正在向已保存的${roleName}服务发起简短测试…`:`正在读取${roleName}服务当前账号的模型列表…`);
-  state.settingsActionBusy=true;const buttons=$$('[data-model-action],#load-models');buttons.forEach(button=>button.disabled=true);
+  connectionResult('pending',`正在确认${roleName}服务的已保存状态…`);
+  state.settingsActionBusy=true;
+  const buttons=$$('[data-model-action],#load-models,#settings-form button[type="submit"]');buttons.forEach(button=>button.disabled=true);
+  let phase='status';
   try{
+    const saved=await api('/api/settings/status');
+    state.settings=saved;updateKeyStatuses();updateReadinessSummary();
+    // An input can change during the status request. Keep the text and ask the
+    // user to save, instead of probing a different configuration silently.
+    if(settingsHaveUnsavedChanges()){connectionResult('warning','表单有未保存的修改，或服务端设置已变化。请先保存当前表单再测试；已保存密钥仍保留，当前输入未清空。');return;}
+    const metadata=modelRoleStatus(role,saved);
+    const target=$('#settings-connection-target');if(target)target.textContent=`${roleName}服务 · ${metadata.base_url||'尚未设置地址'}${metadata.model?' · '+metadata.model:''}`;
+    if(action==='test'&&!metadata.ready){connectionResult('warning',roleGapMessage(role,metadata));return;}
+    if(action==='models'&&!metadata.has_key){connectionResult('warning',`${roleName}服务尚未保存可用密钥。请先保存该服务的 Token；读取模型列表不要求预先填写模型 ID。`);return;}
+    connectionResult('pending',action==='test'?`正在使用已保存的${roleName}密钥发起简短测试…`:`正在读取${roleName}服务当前账号的模型列表…`);
+    phase='probe';
     const data=await api(`/api/settings/${action}`,{method:'POST',body:{role}});
     if(action==='test'){
       if(!data.ok)throw new Error(data.message||'服务没有返回成功的测试结果。');
@@ -167,10 +228,11 @@ async function modelOperation(action,role) {
     }else{
       const models=(data.models||[]).map(model=>typeof model==='string'?model:model.id).filter(id=>typeof id==='string'&&id);
       const targets=role==='writer'&&!state.settings.reviewer_base_url?['writer','reviewer','vision']:[role];
-      for(const target of targets){const datalist=$(`#model-options-${target}`);if(datalist)datalist.innerHTML=models.map(id=>`<option value="${esc(id)}"></option>`).join('');}
+      for(const targetRole of targets){const datalist=$(`#model-options-${targetRole}`);if(datalist)datalist.innerHTML=models.map(id=>`<option value="${esc(id)}"></option>`).join('');}
       connectionResult(models.length?'success':'warning',models.length?`已读取 ${models.length} 个模型 ID，可在${roleName}模型输入框选择。实际权限、免费额度和图片支持仍以服务商为准。`:(data.message||'服务没有返回可用模型，请按官方说明手动填写模型 ID。'));
     }
-  }catch(error){connectionResult('error',error.message);}finally{state.settingsActionBusy=false;buttons.forEach(button=>button.disabled=false);}
+  }catch(error){connectionResult('error',phase==='status'?`暂时无法确认已保存状态：${error.message} 尚未发起模型测试，表单内容已保留。`:error.message);}
+  finally{state.settingsActionBusy=false;buttons.forEach(button=>button.disabled=false);}
 }
 function stageIndex(t) { return {queued:0,extracting:0,writing:1,reviewing:2,revising:3,needs_input:0,needs_review:4,approved:5,failed:0}[t.status]??0; }
 function detailPage() {
@@ -250,7 +312,21 @@ function openDelete(){state.modal='delete';simpleModal('删除这条写作任务
 function showVersion(index){const version=state.task.versions[index];state.modal='version';modalShell(esc(version.title||`第 ${version.round??index} 版`),'历史稿件只读，当前终稿不会被覆盖。',`<div class="modal-content"><article class="version-preview">${esc(version.content||version.draft||'暂无文本')}</article></div>`,`<footer class="modal-footer"><small>${countWords(version.content||version.draft)} 字</small><button class="secondary-btn" data-close>关闭</button></footer>`,false);}
 async function saveEdit(){if(state.busy)return;state.busy=true;try{state.task=await api(`/api/tasks/${encodeURIComponent(state.task.id)}/edit`,{method:'POST',body:{draft:state.editText}});state.editing=false;await refresh();toast('修改已保存，历史版本仍然保留');}catch(e){toast(e.message,true);}finally{state.busy=false;}}
 async function saveProfile(e){e.preventDefault();const button=$('button[type="submit"]',e.currentTarget);button.disabled=true;try{const data=Object.fromEntries(new FormData(e.currentTarget));state.profile=await api('/api/profile',{method:'PUT',body:data});await refresh();toast('你的写作素材已保存');}catch(error){$('#profile-error').innerHTML=`<div class="error-inline">${esc(error.message)}</div>`;button.disabled=false;}}
-async function saveSettings(e){e.preventDefault();const button=$('button[type="submit"]',e.currentTarget);button.disabled=true;try{const data=Object.fromEntries(new FormData(e.currentTarget));data.daily_limit=Number(data.daily_limit);if(!Number.isInteger(data.daily_limit)||data.daily_limit<1000)throw new Error('每日 token 上限请填写至少 1000 的整数。');state.settings=await api('/api/settings',{method:'PUT',body:data});await refresh();toast('模型设置已保存；可在下方测试实际连接');}catch(error){$('#settings-error').innerHTML=`<div class="error-inline">${esc(error.message)}</div>`;button.disabled=false;}}
+async function saveSettings(e) {
+  e.preventDefault();const form=e.currentTarget,button=$('button[type="submit"]',form);button.disabled=true;
+  try{
+    const data=Object.fromEntries(new FormData(form));data.daily_limit=Number(data.daily_limit);
+    if(!Number.isInteger(data.daily_limit)||data.daily_limit<1000)throw new Error('每日 token 上限请填写至少 1000 的整数。');
+    const saved=await api('/api/settings',{method:'PUT',body:data});
+    if(data.api_key.trim()&&saved.has_key!==true)throw new Error('服务端尚未确认写作密钥已保存，请检查服务状态后重试；当前输入已保留。');
+    if(data.reviewer_api_key.trim()&&saved.has_reviewer_key!==true)throw new Error('服务端尚未确认评审密钥已保存，请检查服务状态后重试；当前输入已保留。');
+    // The PUT returns normalized public metadata. A second bootstrap request
+    // could fail after persistence succeeded and incorrectly imply a lost key.
+    state.settings=saved;settingsPage();
+    const ready=modelRoleStatus('writer').ready&&modelRoleStatus('reviewer').ready;
+    toast(ready?'设置已保存，密钥已隐藏；无需再填，可直接测试。':saved.has_key||saved.has_reviewer_key?'密钥已保存并隐藏；请补齐提示中的模型设置。':'设置已保存，请按各服务提示补充密钥与模型。');
+  }catch(error){const box=$('#settings-error');if(box)box.innerHTML=`<div class="error-inline">${esc(error.message)}</div>`;button.disabled=false;}
+}
 async function download(format){try{const response=await fetch(`/api/tasks/${encodeURIComponent(state.task.id)}/export?format=${encodeURIComponent(format)}`,{credentials:'same-origin'});if(!response.ok){let message='导出失败';try{message=text((await response.json()).detail)||message;}catch{}throw new Error(message);}const blob=await response.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${state.task.title||'稿间文章'}${format==='email'?'-邮件草稿':''}.${format==='docx'?'docx':'txt'}`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(format==='email'?'已导出邮件草稿，尚未发送':'稿件已导出');}catch(e){toast(e.message,true);}}
 document.addEventListener('keydown',e=>{if(!state.modal)return;if(e.key==='Escape')closeModal();if(e.key==='Tab'){const items=$$('button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href]',$('#overlay-root'));const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 window.addEventListener('hashchange',route);
